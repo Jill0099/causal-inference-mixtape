@@ -558,3 +558,249 @@ plot(ri_out)
 * Randomization inference
 ritest treated _b[treated], reps(1000): reg y treated
 ```
+
+---
+
+## §11. Diff-in-Discontinuities (Grembi-Nannicini-Troiano 2016)
+
+Use when an RDD cutoff existed *before* a policy change and you want to isolate the policy's marginal effect at the cutoff. Bennedsen et al. (2022) uses this at Denmark's 35-employee wage-transparency threshold.
+
+### Python
+
+```python
+# Diff-in-disc: estimate RDD before policy, after policy, and difference
+from rdrobust import rdrobust
+
+# Pre-period RDD
+pre = df[df['post'] == 0]
+pre_res = rdrobust(y=pre['y'], x=pre['running_var'], c=cutoff, h=bandwidth, p=1)
+
+# Post-period RDD
+post = df[df['post'] == 1]
+post_res = rdrobust(y=post['y'], x=post['running_var'], c=cutoff, h=bandwidth, p=1)
+
+# Diff-in-disc = post_res.coef - pre_res.coef (test via bootstrap)
+```
+
+### R
+
+```r
+library(rdrobust)
+
+# Pooled: Y on post × above_cutoff + controls
+library(fixest)
+feols(y ~ post * above_cutoff + bs(running_var, df=4)
+           + post:bs(running_var, df=4),
+      cluster = ~ id, data = df)
+
+# Or two separate RDDs and difference
+pre_rd  <- rdrobust(df$y[df$post==0], df$running[df$post==0], c=35, h=15)
+post_rd <- rdrobust(df$y[df$post==1], df$running[df$post==1], c=35, h=15)
+diff    <- post_rd$coef[1] - pre_rd$coef[1]
+```
+
+### Stata
+
+```stata
+* Pooled diff-in-disc with local linear polynomial
+reg y c.post##c.above_cutoff##c.running_dev i.(covs) ///
+    if abs(running_dev) <= 15, vce(cluster firmid)
+
+* Or separate RDDs
+rdrobust y running_var if post==0, c(35) h(15) p(1)
+estimates store pre
+rdrobust y running_var if post==1, c(35) h(15) p(1)
+estimates store post
+```
+
+**Robustness**: sweep placebo cutoffs (Bennedsen swept 15–100 employees excluding 20–50).
+
+---
+
+## §12. Weather/Shift-Share IV for Cash-Flow Shocks
+
+Template from Brown et al. (2021): county-level abnormal snow cover as IV for firm annual cash flow.
+
+### Python
+
+```python
+from linearmodels.iv import IV2SLS
+import pandas as pd
+
+# Construct abnormal-snow IV: county-quarter Q1 deviation from 10-year average
+df['abn_snow_q1'] = df.groupby('county')['snow_q1'].transform(
+    lambda s: s - s.rolling(10, min_periods=5).mean().shift(1)
+)
+
+# Check first-stage
+from statsmodels.formula.api import ols
+first_stage = ols(
+    'cash_flow ~ abn_snow_q1 + fixed_assets_lag + size_lag + age_lag '
+    '+ C(naics4_yq) + C(county)',
+    data=df
+).fit(cov_type='cluster', cov_kwds={'groups': df['naics4']})
+print('First-stage F on IV:', first_stage.f_test('abn_snow_q1 = 0').fvalue)
+
+# 2SLS
+iv = IV2SLS.from_formula(
+    'delta_credit_draw ~ 1 + fixed_assets_lag + size_lag + age_lag '
+    '+ C(naics4_yq) + C(county) '
+    '+ [cash_flow ~ abn_snow_q1]',
+    data=df
+)
+res = iv.fit(cov_type='clustered', clusters=df['naics4'])
+```
+
+### R
+
+```r
+library(fixest)
+
+# First stage
+feols(cash_flow ~ abn_snow_q1 + fixed_assets_lag + size_lag + age_lag
+      | naics4^yq + county,
+      cluster = ~ naics4, data = df)
+
+# 2SLS (fixest IV syntax)
+feols(delta_credit_draw ~ fixed_assets_lag + size_lag + age_lag
+      | naics4^yq + county
+      | cash_flow ~ abn_snow_q1,
+      cluster = ~ naics4, data = df) |> summary(stage = 1:2)
+```
+
+### Stata
+
+```stata
+* Construct abnormal snow IV
+bysort county (year): gen snow_ma10 = (snow_q1[_n-1] + snow_q1[_n-2] + ///
+    snow_q1[_n-3] + ... + snow_q1[_n-10]) / 10
+gen abn_snow_q1 = snow_q1 - snow_ma10
+
+* First-stage check
+reghdfe cash_flow abn_snow_q1 fixed_assets_lag size_lag age_lag, ///
+    absorb(naics4#yq county) vce(cluster naics4)
+
+* 2SLS
+ivreghdfe delta_credit_draw (cash_flow = abn_snow_q1) ///
+    fixed_assets_lag size_lag age_lag, ///
+    absorb(naics4#yq county) cluster(naics4) first
+```
+
+**First-stage F target**: > 10 (Stock-Yogo) or > 104.7 (Lee-McCrary-Moreira-Porter 2022 correction for t-ratio inference).
+
+---
+
+## §13. Saturated Interacted FE (Within-Unit-Time Identification)
+
+Template from Kempf-Tsoutsoura (2021): identify analyst-level effect by absorbing firm × quarter + agency × quarter.
+
+### Python
+
+```python
+# pyhdfe scales to billions of cells
+import pyhdfe
+import statsmodels.api as sm
+
+absorb_ids = df[['firm_quarter_id', 'agency_quarter_id', 'analyst_id']].values
+algo = pyhdfe.create(absorb_ids, drop_singletons=True)
+
+X = df[['misaligned']].values
+y = df[['rating_adj']].values
+X_dm, y_dm = algo.residualize(X), algo.residualize(y)
+
+res = sm.OLS(y_dm, X_dm).fit(
+    cov_type='cluster',
+    cov_kwds={'groups': df.loc[algo._singleton_indices == False, 'analyst_id']}
+)
+```
+
+### R
+
+```r
+library(fixest)
+
+# Triple-interacted FE: firm × quarter + agency × quarter + analyst
+feols(rating_adj ~ misaligned | firm^quarter + agency^quarter + analyst,
+      cluster = ~ analyst + firm, data = df)
+
+# For employer × county × period (Meeuwis-style)
+feols(delta_equity ~ republican:post2016
+      | employer^county^period + household,
+      cluster = ~ zip + employer, data = df)
+```
+
+### Stata
+
+```stata
+* reghdfe handles arbitrarily high-dimensional FE efficiently
+reghdfe rating_adj misaligned, ///
+    absorb(firm#quarter agency#quarter analyst) ///
+    vce(cluster analyst firm)
+
+* Triple-interaction (Meeuwis)
+reghdfe delta_equity c.republican##c.post2016, ///
+    absorb(employer#county#period household) ///
+    vce(cluster zip employer)
+```
+
+**Rule**: cluster at treatment-assignment level (analyst, household), NOT at the highest FE level.
+
+---
+
+## §14. Event Study — Election / FOMC / Platform Shock
+
+Template for financial event studies with asymmetric information release.
+
+### Python
+
+```python
+# Daily CAR around event date
+import numpy as np
+
+def compute_car(df, event_date, window=(-10, 10), model='ff3'):
+    """Compute cumulative abnormal return in event window."""
+    # Estimate normal-return model on (event-250, event-20)
+    est_window = df[(df['date'] >= event_date - pd.Timedelta(days=250)) &
+                     (df['date'] < event_date - pd.Timedelta(days=20))]
+    # Fit FF3 per permno, forecast in event window
+    # Subtract to get abnormal return, then cumulate
+    ...
+
+# Cross-sectional test: CAR on firm characteristics
+import statsmodels.formula.api as smf
+res = smf.ols('car_10d ~ emission_intensity + log_size + log_bm',
+              data=event_df).fit(cov_type='HC1')
+```
+
+### R
+
+```r
+library(eventstudies)
+
+# Event-study abnormal returns around 2016-11-09
+es <- eventstudy(
+    firm.returns    = returns_matrix,
+    event.list      = data.frame(name=c("AAPL","MSFT"), when=as.Date("2016-11-09")),
+    event.window    = 10,
+    type            = "marketModel",
+    to.remap        = TRUE,
+    remap           = "cumsum",
+    inference       = TRUE,
+    inference.strategy = "bootstrap"
+)
+plot(es)
+```
+
+### Stata
+
+```stata
+* eventstudy2 package
+eventstudy2 permno date using event_dates.dta, ///
+    returns(ret) modeltype(FFM) estwin(-250 -20) eventwin(-10 10) ///
+    alpha market_ret smb hml
+
+* Cross-sectional test
+reg car_10d emission_intensity log_size log_bm, robust
+```
+
+**Key robustness**: (1) placebo non-event dates, (2) no overlapping corporate actions, (3) multiple comparison correction if scanning many events, (4) sign-flip test for asymmetric effects.

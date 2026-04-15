@@ -1,12 +1,12 @@
 ---
 name: causal-inference-mixtape
-description: This skill should be used when the user asks to "implement a DiD regression", "write a causal inference pipeline", "set up an event study", "implement instrumental variables", "run a regression discontinuity design", "build a synthetic control model", "implement propensity score matching", "write parallel trends test", "implement Bacon decomposition", or needs code templates for causal inference methods in Python, R, or Stata. Based on Scott Cunningham's Causal Inference: The Mixtape.
-version: 1.0.0
+description: This skill should be used when the user asks to "implement a DiD regression", "run diff-in-discontinuities", "set up an event study", "implement IV / 2SLS", "run a regression discontinuity design", "build synthetic control", "saturated interacted FE", "weather-shock IV", "Callaway-Sant'Anna", "Sun-Abraham", or needs causal-inference code templates in Python/R/Stata with finance applications.
+version: 2.1.0
 ---
 
-# Causal Inference: The Mixtape — Code Skill
+# Causal Inference: The Mixtape — Code Skill (v2.1)
 
-Practitioner-oriented causal inference skill built from Scott Cunningham's *Causal Inference: The Mixtape* repository. Covers 10 identification strategies with ready-to-run code templates in Python, R, and Stata.
+Provides practitioner-oriented causal-inference templates covering 10 identification strategies in Python, R, and Stata, extended with 25 top-tier Journal of Finance (2021-2024) application case studies. Based on Scott Cunningham's *Causal Inference: The Mixtape* plus mined JF 2021-2024 top-cited papers for finance-specific patterns.
 
 ---
 
@@ -47,15 +47,7 @@ Practitioner-oriented causal inference skill built from Scott Cunningham's *Caus
 | Coarsened Exact Matching | Stata (cem) or R (MatchIt) — no Python equivalent |
 | Quick prototyping | Python with statsmodels |
 
-### Cross-Language Equivalents
-
-| Task | Python | R | Stata |
-|------|--------|---|-------|
-| OLS with robust SE | `smf.ols().fit(cov_type='HC1')` | `lm_robust()` | `reg y x, robust` |
-| Cluster SE | `fit(cov_type='cluster', cov_kwds={'groups': g})` | `felm(y ~ x | 0 | 0 | cluster)` | `reg y x, cluster(id)` |
-| Two-way FE | `C(id) + C(time)` in formula | `felm(y ~ x | id + time)` | `reghdfe y x, absorb(id time)` |
-| IV / 2SLS | `IV2SLS.from_formula('y ~ 1 + exog + [endog ~ inst]')` | `ivreg(y ~ exog | inst)` | `ivregress 2sls y exog (endog = inst)` |
-| DiD | `C(treat)*C(post)` | `treat:post` in formula | `did_multiplegt` or interaction |
+For cross-language syntax equivalents (OLS, cluster SE, two-way FE, IV, DiD), see `references/r-stata-comparison.md` §Cross-Language Equivalents.
 
 ---
 
@@ -112,6 +104,11 @@ results = model.fit(cov_type='clustered', clusters=df['cluster_var'])
 3. **RDD without McCrary test** — always test for manipulation at the cutoff before estimating.
 4. **IV weak instruments** — report first-stage F-statistic. Below 10 indicates weak instrument bias.
 5. **Python Synth gap** — no mature Python Synth package exists. Use `rpy2` to call R's `Synth` from Python.
+6. **Non-causal framing vs. causal identification** — asset-pricing "factor captures the cross-section" is a *spanning* claim, not a causal one. Do not use "cause / drive / affect" without exogenous variation. See `references/identification-writing-patterns.md` §3 for verb guide.
+7. **Saturated FE absorbing treatment** — `county × year` FE absorbs any state-level policy. Always check that FE structure does not soak up the treatment itself.
+8. **Over-clustering** — cluster at the treatment-assignment level (Abadie-Athey-Imbens-Wooldridge 2023), not the highest FE level.
+9. **Cross-country panel ≠ causal** — rich FE reduce confounds but don't produce exogenous variation. Bolton 2023 is honest about this; follow that pattern.
+10. **Multiple-testing / factor zoo** — apply Benjamini-Yekutieli FDR or Bayesian theme-shrinkage (Jensen-Kelly-Pedersen 2023) before trusting any single α.
 
 ---
 
@@ -121,8 +118,12 @@ results = model.fit(cov_type='clustered', clusters=df['cluster_var'])
 
 - **`references/method-patterns.md`** — Detailed code templates for all 10 methods with full examples
 - **`references/r-stata-comparison.md`** — Cross-language package comparison and method coverage gaps
+- **`references/finance-applications.md`** — 25-paper case-sketch catalog indexed by method (DiD / IV / RDD / event study / structural / Fama-MacBeth) with Y / D / unit / FE / clustering / data-source filled in from top-tier JF papers
+- **`references/identification-writing-patterns.md`** — Exemplar identification paragraphs, finance-specific verb guide (causal vs. spanning vs. descriptive), and design-specific robustness checklists
+- **`references/jf-case-studies.md`** — Five end-to-end worked examples (Bennedsen DiD + DDD + diff-in-disc, Kempf saturated FE, Brown weather-shock IV, Barber sharp RDD + outage, Meeuwis election × partisan DiD) with full Python / R / Stata code skeletons
 
 ### Prompt Files
 
 - **`prompts/01-implement-method.md`** — Copy-paste prompt for implementing any causal method
 - **`prompts/02-robustness-checks.md`** — Copy-paste prompt for generating robustness check code
+- **`prompts/03-finance-application.md`** — Copy-paste prompt for implementing a causal method on a finance dataset, with robustness checklist and identification-paragraph drafting
