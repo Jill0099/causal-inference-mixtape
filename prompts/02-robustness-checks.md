@@ -21,8 +21,27 @@ Produce code for ALL of the following:
    - Expect null result
 
 3. BACON DECOMPOSITION (if staggered):
-   - Decompose TWFE into 2x2 comparisons
-   - Identify problematic "already-treated vs later-treated" weight
+   - Decompose TWFE into 2x2 comparisons; verify the weights sum to 1 and the
+     weighted sum reproduces the TWFE coefficient
+   - Report the WEIGHT on "already-treated as control" comparisons
+   - Then re-estimate with Callaway-Sant'Anna, Sun-Abraham and BJS imputation,
+     and report one of those as the headline with TWFE as a benchmark
+
+3b. HONEST DiD (Rambachan-Roth 2023) -- do this instead of stopping at a flat
+    pre-trend plot:
+   - Report the POWER of the joint pre-trend test (Roth 2022). If it is below
+     0.8, say so: "we cannot reject" is then very weak evidence.
+   - Robust confidence sets over M = 0, 0.25, 0.5, 1, 2
+   - State the BREAKDOWN M in words. A breakdown below 1 means the result
+     cannot survive a violation no larger than one already visible pre-treatment.
+
+3c. INFERENCE:
+   - Cluster at the level treatment was ASSIGNED, and say what that level is
+   - Report the number of clusters AND the number of TREATED clusters
+   - If clusters < 50: wild cluster bootstrap, asserting its beta matches the
+     analytic coefficient
+   - If clusters < 10: randomisation inference instead
+   - Permutation/bootstrap p-values: report "p < 1/(1+B)", never "p = 0.000"
 
 4. ALTERNATIVE CONTROL GROUP:
    - Re-estimate dropping [specific units] from control group
@@ -52,26 +71,42 @@ You are an expert econometrician. Generate robustness check code in [Python / R 
 
 Produce code for ALL of the following:
 
-1. McCRARY DENSITY TEST:
-   - Test for manipulation at the cutoff
-   - Report test statistic and p-value
-   - Plot density
+0. SHARPNESS CHECK:
+   - P(treated | just below) vs P(treated | just above). If compliance is not
+     near-perfect this is a FUZZY design and crossing the cutoff instruments
+     for treatment -- say so before anything else.
 
-2. COVARIATE BALANCE:
-   - Test each covariate for discontinuity at cutoff
-   - Report coefficients and p-values in a table
+1. MANIPULATION / DENSITY TEST -- run this FIRST, before any estimate:
+   - Cattaneo-Jansson-Ma (2020) via rddensity (native in Python, R and Stata --
+     the old `rdd::DCdensity` advice is obsolete)
+   - Report test statistic and p-value; plot the density
+   - If it rejects, the design is dead and no bandwidth choice repairs it
 
-3. BANDWIDTH ROBUSTNESS:
-   - Re-estimate with bandwidths: h/2, h, 3h/2, 2h (h = IK optimal)
-   - Table of estimates across bandwidths
+2. HEADLINE ESTIMATE:
+   - MSE-optimal bandwidth, triangular kernel, ROBUST BIAS-CORRECTED CI
+   - A hand-rolled `y ~ D*x` OLS inside a chosen bandwidth uses a uniform kernel,
+     no bias correction and conventional SEs -- it undercovers. Show it only as
+     a benchmark, never as the headline.
+   - Report effective N on each side of the cutoff
 
-4. POLYNOMIAL ROBUSTNESS:
-   - Linear, quadratic, cubic specifications
-   - Report all three estimates
+3. COVARIATE BALANCE:
+   - PREDETERMINED variables only. The treatment indicator is SUPPOSED to jump;
+     putting it in a balance table is a category error.
+   - Report coefficient, SE and a verdict per covariate
 
-5. PLACEBO CUTOFFS:
-   - Re-estimate at false cutoffs (e.g., median of each side)
-   - Expect null results
+4. BANDWIDTH ROBUSTNESS:
+   - Re-estimate at h/2, h, 2h (h = MSE-optimal)
+   - Note that passing h explicitly also changes how the bias-correction
+     bandwidth b is chosen, so the middle row need not match the headline
+
+5. POLYNOMIAL ROBUSTNESS:
+   - Local linear (p=1) and quadratic (p=2) only
+   - STOP at 2: Gelman & Imbens (2019) show high-order global polynomials give
+     noisy weights and poor coverage. Never report a cubic or quartic as headline.
+
+6. PLACEBO CUTOFFS:
+   - Re-estimate at false cutoffs away from the true one; expect nulls
+   - Flag any placebo that is significant at 5%
 
 My details:
 - Running variable: [e.g., vote share percentage]
@@ -91,25 +126,48 @@ You are an expert econometrician. Generate robustness check code in [Python / R 
 Produce code for ALL of the following:
 
 1. FIRST-STAGE DIAGNOSTICS:
-   - First-stage regression with F-statistic
-   - Report coefficient on instrument(s)
-   - Cragg-Donald / Kleibergen-Paap F-stat
+   - First-stage regression with the F-statistic on the EXCLUDED instruments
+   - Cragg-Donald / Kleibergen-Paap F
+   - State WHICH criterion you are invoking: Staiger-Stock F>10 bounds relative
+     bias; Lee, McCrary, Moreira & Porter (2022) show valid 5% t-test inference
+     needs F>104.7 or a tF-adjusted critical value. Between 10 and 104.7 the
+     point estimate is usable but a conventional t-test over-rejects.
+   - If weak: report an ANDERSON-RUBIN confidence interval, which is valid
+     regardless of instrument strength.
 
-2. EXCLUSION RESTRICTION SUPPORT:
-   - Placebo test: regress outcome on instrument controlling for endogenous variable
-   - If coefficient on instrument ≈ 0, supports exclusion
+2. EXCLUSION RESTRICTION:
+   - Argue it in PROSE. There is no test for it. Placebo regressions are
+     suggestive at best -- do not present one as evidence of validity.
+   - Name the specific alternative channel a sceptic would propose, and say why
+     it does not operate here.
 
 3. OVER-IDENTIFICATION TEST (if multiple instruments):
-   - Hansen J / Sargan test
-   - Report test statistic and p-value
+   - Hansen J / Sargan; report statistic and p-value
+   - State the caveat: this only asks whether the instruments AGREE WITH EACH
+     OTHER. Two instruments violating exclusion in the same direction pass.
+     A failure may also just mean they identify different LATEs.
 
 4. REDUCED FORM:
-   - Regress outcome directly on instrument(s)
-   - Should have same sign as 2SLS estimate
+   - Regress the outcome directly on the instrument(s)
+   - With one instrument, reduced form / first stage reproduces the 2SLS
+     coefficient exactly -- verify this as an arithmetic check
 
 5. OLS vs IV COMPARISON:
-   - Report OLS and IV side by side
-   - Wu-Hausman endogeneity test
+   - Report side by side with the Wu-Hausman test
+   - If IV > OLS, ability-bias intuition alone does not explain it -- discuss
+     what that says about who the compliers are
+
+6. ESTIMAND:
+   - State the result as a LATE, not "the effect"
+   - Report the complier share (the first stage) and characterise compliers
+   - Discuss MONOTONICITY explicitly: who would the defiers be, and why are
+     there none?
+
+7. IMPLEMENTATION HYGIENE:
+   - Use a real 2SLS routine. A manual two-step reproduces the point estimate
+     exactly and reports the WRONG standard error, in a data-dependent direction.
+   - Never plug a logit/probit first-stage fitted value in as a REGRESSOR
+     (the forbidden regression). Use it as an INSTRUMENT if you must.
 
 My details:
 - Endogenous variable: [e.g., corruption level]

@@ -1,0 +1,24 @@
+# Versions the templates in scripts/ were executed and validated against.
+# Loosened to >= because none of the assertions depend on a pinned patch level,
+# but the numbers quoted in the documentation come from exactly these.
+#
+#   validated 2026-08 on macOS / CPython 3.11
+#     statspai 1.21.0   pyfixest 0.50.1   statsmodels 0.14.6
+#     linearmodels 6.1  pyhdfe 0.2.0      pandas 3.0.2
+#     numpy 2.4.4       scipy 1.17.1      matplotlib 3.9.3
+#     wildboottest 0.3.2
+
+statspai>=1.21
+pyfixest>=0.50
+statsmodels>=0.14
+linearmodels>=6.1
+pyhdfe>=0.2
+pandas>=2.0
+numpy>=1.26
+scipy>=1.11
+matplotlib>=3.8
+
+# Optional: a second, independent wild cluster bootstrap implementation.
+# scripts/10_inference_clusters.py cross-checks against it when present and
+# degrades gracefully when it is not.
+wildboottest>=0.3

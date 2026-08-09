@@ -21,11 +21,15 @@ reghdfe log_wage c.treated##c.post##c.male, ///
     absorb(i.pid#i.firmid year) ///
     vce(cluster pid firmid)
 
-* Event study (pre-trends + dynamic effect)
+* Event study (pre-trends + dynamic effect).
+* rel_k is indexed so that rel_2 is k = -1, the OMITTED reference period.
+* Omitting k = 0 instead -- an easy off-by-one -- normalises the treatment
+* period itself and makes every post coefficient a difference from impact.
 forvalues k = -3/2 {
-    gen rel_`=`k'+3' = treated * (year == 2006 + `k')
+    local j = `k' + 3
+    gen rel_`j' = treated * (year == 2006 + `k')   // rel_0=k-3 ... rel_5=k+2
 }
-reghdfe log_wage rel_0 rel_1 rel_2 rel_4 rel_5, ///
+reghdfe log_wage rel_0 rel_1 rel_3 rel_4 rel_5, /// rel_2 (k=-1) omitted
     absorb(i.pid#i.firmid year) vce(cluster firmid)
 
 * Placebo thresholds (sweep 15..100 excluding 20..50)
@@ -46,19 +50,28 @@ import statsmodels.formula.api as smf
 
 df = pd.read_parquet('danish_ida.parquet')
 
-# DiD with two-way FE
-model = smf.ols(
-    'log_wage ~ C(treated):C(post) + C(pid):C(firmid) + C(year)',
-    data=df
-)
-res = model.fit(cov_type='cluster', cov_kwds={'groups': df[['pid','firmid']].astype(str).sum(axis=1)})
+# DiD with two-way FE.  On an employer-employee panel the C(pid):C(firmid)
+# dummy expansion is astronomically large -- use an HDFE backend, not patsy.
+import statspai as sp
 
-# Event study
-for k in range(-3, 3):
+df['treat_post'] = df['treated'] * df['post']
+res = sp.feols('log_wage ~ treat_post | pid^firmid + year',
+               data=df, vcov={'CRV1': 'firmid'})
+
+# Event study.  Note range(-3, 3) already contains -1, so the reference period
+# must be excluded from BOTH the dummy list and the formula -- which the
+# comprehension below does by filtering on k != -1 in one place only.
+rel_periods = [k for k in range(-3, 3) if k != -1]
+for k in rel_periods:
     df[f'rel_{k}'] = df['treated'] * (df['year'] == 2006 + k).astype(int)
-ev_formula = 'log_wage ~ ' + ' + '.join([f'rel_{k}' for k in range(-3,3) if k != -1]) + \
-             ' + C(pid):C(firmid) + C(year)'
-ev_res = smf.ols(ev_formula, data=df).fit(cov_type='cluster', cov_kwds={'groups': df['firmid']})
+ev_res = sp.feols(
+    'log_wage ~ ' + ' + '.join(f'rel_{k}' for k in rel_periods) + ' | pid^firmid + year',
+    data=df, vcov={'CRV1': 'firmid'},
+)
+
+# Or in one call, letting StatsPAI build and bin the relative-time indicators:
+es = sp.event_study(data=df, y='log_wage', treat_time='first_treat', time='year',
+                    unit='pid', window=(-3, 2), ref_period=-1, cluster='firmid')
 ```
 
 ### R
@@ -78,9 +91,20 @@ feols(log_wage ~ treated:post + male:post + treated:post:male | pid^firmid + yea
 feols(log_wage ~ i(year, treated, ref = 2005) | pid^firmid + year,
       cluster = ~ firmid, data = df) |> iplot()
 
-# Diff-in-disc
-rdrobust(y = df$log_wage, x = df$emp_2005, c = 35,
-         covs = model.matrix(~ post*post, df))
+# Diff-in-disc: two RDDs, before and after the policy, then difference them.
+# (`covs = model.matrix(~ post*post, df)` is a typo -- post*post collapses to
+#  post, and passing the post indicator as a covariate does not difference
+#  anything.  Estimate the two regimes separately.)
+pre  <- rdrobust(df$log_wage[df$post == 0], df$emp_2005[df$post == 0], c = 35, h = 15)
+post <- rdrobust(df$log_wage[df$post == 1], df$emp_2005[df$post == 1], c = 35, h = 15)
+diff <- post$coef[1] - pre$coef[1]
+# SE of the difference: the two samples are disjoint, so variances add
+se   <- sqrt(post$se[1]^2 + pre$se[1]^2)
+
+# Or pooled, which gives the interaction its own standard error directly:
+library(fixest)
+feols(log_wage ~ post * above_cutoff * running_dev, cluster = ~ firmid,
+      data = subset(df, abs(running_dev) <= 15))
 ```
 
 ### What to report
@@ -118,18 +142,27 @@ reghdfe rating_adj c.misaligned##c.high_cyclicality, ///
 
 ### Python
 ```python
-import pyhdfe  # pip install pyhdfe
+# Simplest correct route -- interacted FE syntax, no manual demeaning
+import statspai as sp
+sp.feols('rating_adj ~ misaligned | firm^yq + agency^yq + analyst',
+         data=df, vcov={'CRV1': 'analyst'})
+
+# pyhdfe route, when you want the residualised matrices.
+# TRAP: pyhdfe.create defaults to drop_singletons=True, which REMOVES ROWS.
+# df['analyst_id'] would then be longer than the residualised arrays and the
+# clustering silently misaligns.  Turn it off, or drop singletons from the
+# frame first so a single index governs both.
+import pyhdfe
 import statsmodels.api as sm
 
-X = df[['misaligned']].values
-absorb_ids = df[['firm_yq_id','agency_yq_id','analyst_id']].values
-algo = pyhdfe.create(absorb_ids)
-X_demeaned = algo.residualize(X)
-y_demeaned = algo.residualize(df[['rating_adj']].values)
+algo = pyhdfe.create(df[['firm_yq_id', 'agency_yq_id', 'analyst_id']].to_numpy(),
+                     drop_singletons=False)
+X_demeaned = algo.residualize(df[['misaligned']].to_numpy())
+y_demeaned = algo.residualize(df[['rating_adj']].to_numpy())
+assert len(X_demeaned) == len(df)
 
 res = sm.OLS(y_demeaned, X_demeaned).fit(
-    cov_type='cluster',
-    cov_kwds={'groups': df['analyst_id']}
+    cov_type='cluster', cov_kwds={'groups': df['analyst_id']}
 )
 ```
 
@@ -186,17 +219,30 @@ forvalues t = 1/3 {
 
 ### Python
 ```python
-from linearmodels.iv import IV2SLS
+import statspai as sp
 
-# 2SLS
-iv_model = IV2SLS.from_formula(
-    'delta_credit_draw ~ 1 + fixed_assets_lag + size_lag + age_lag'
-    ' + [cash_flow ~ abn_snow_q1] + C(naics4_yq) + C(county)',
-    data=df
+# IV with high-dimensional FE.  Putting C(naics4_yq) + C(county) in a patsy
+# formula materialises thousands of dummy columns; use fixest-style absorption.
+first = sp.feols(
+    'cash_flow ~ abn_snow_q1 + fixed_assets_lag + size_lag + age_lag'
+    ' | naics4^yq + county',
+    data=df, vcov={'CRV1': 'naics4'},
 )
-res = iv_model.fit(cov_type='clustered', clusters=df['naics4'])
-print(res.first_stage)    # first-stage F here
-print(res.summary)
+print(first.summary())    # report this table; F on abn_snow_q1 should exceed 10
+
+iv = sp.feols(
+    'delta_credit_draw ~ fixed_assets_lag + size_lag + age_lag'
+    ' | naics4^yq + county | cash_flow ~ abn_snow_q1',
+    data=df, vcov={'CRV1': 'naics4'},
+)
+print(iv.summary())
+
+# Reduced form -- always show it alongside; with one instrument,
+# reduced form / first stage reproduces the 2SLS coefficient exactly.
+rf = sp.feols(
+    'delta_credit_draw ~ abn_snow_q1 + fixed_assets_lag | naics4^yq + county',
+    data=df, vcov={'CRV1': 'naics4'},
+)
 ```
 
 ### R
@@ -249,17 +295,23 @@ rddensity marketcap, c(300)
 
 ### Python
 ```python
-# Sharp RDD (manual with statsmodels)
-import statsmodels.formula.api as smf
-h = 50
-sub = df[(df['marketcap'].between(300-h, 300+h)) & df['top_mover_eligible']]
-sub['z'] = sub['marketcap'] - 300
-sub['above'] = (sub['z'] >= 0).astype(int)
-res = smf.ols('buy_users ~ above + z + above:z', data=sub).fit(
-    cov_type='cluster', cov_kwds={'groups': sub['permno']}
-)
+import statspai as sp
 
-# rdrobust-python exists (rdrobust-py or via rpy2 to R)
+# Manipulation test first -- market cap is a running variable firms can
+# plausibly influence near a threshold that determines retail attention.
+print(sp.rddensity(data=df, x='marketcap', c=300).summary())
+
+# Sharp RDD with MSE-optimal bandwidth and robust bias-corrected CI
+rd = sp.rdrobust(data=df, y='buy_users', x='marketcap', c=300,
+                 covs=['abs_ret', 'vol_pctl'])
+print(rd.summary())
+sp.rdplot(data=df, y='buy_users', x='marketcap', c=300)
+
+# Bandwidth sweep as robustness (NOT as the headline -- passing h also changes
+# how the bias-correction bandwidth b is selected)
+for h in (25, 50, 75, 100):
+    r = sp.rdrobust(data=df, y='buy_users', x='marketcap', c=300, h=h)
+    print(h, float(r.estimate), float(r.se))
 ```
 
 ### R
@@ -316,13 +368,23 @@ reghdfe delta_equity_share c.republican##c.post2016##c.high_trading, ///
 
 ### Python
 ```python
-# Use pyhdfe for triple-interaction FE
-import statsmodels.formula.api as smf
+import statspai as sp
 
-formula = ('delta_equity_share ~ republican:post2016 + log_wealth + age'
-           ' + C(employer):C(county):C(period) + C(household)')
-res = smf.ols(formula, data=df).fit(
-    cov_type='cluster', cov_kwds={'groups': df['zip']}
+# Triple-interacted FE on a household panel: never expand these as patsy
+# dummies -- employer x county x period alone can be millions of columns.
+# Use an HDFE backend and two-way clustering.
+df['rep_post'] = df['republican'] * df['post2016']
+res = sp.feols(
+    'delta_equity_share ~ rep_post + log_wealth + age'
+    ' | employer^county^period + household',
+    data=df, vcov={'CRV1': 'zip'},
+)
+
+# 2012 placebo -- same specification, wrong election
+df['rep_post2012'] = df['republican'] * df['post2012']
+placebo = sp.feols(
+    'delta_equity_share ~ rep_post2012 + log_wealth | employer^county^period + household',
+    data=df, vcov={'CRV1': 'zip'},
 )
 ```
 
