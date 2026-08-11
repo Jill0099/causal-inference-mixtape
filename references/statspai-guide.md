@@ -1,6 +1,10 @@
 # StatsPAI — the Python-native causal inference workbench
 
-**Use this as the default Python backend for every method in this skill.**
+Use this guide when StatsPAI is the selected backend; choose among Python, R,
+and Stata implementations according to estimator maturity and replication needs.
+
+**Disclosure:** the v3 StatsPAI integration was contributed by StatsPAI's
+maintainer. Retain independent cross-checks for headline estimates.
 
 [StatsPAI](https://github.com/brycewang-stanford/statspai) (`pip install statspai`,
 imported as `import statspai as sp`) is a single package covering the Stata/R
@@ -243,9 +247,10 @@ instead of re-supplying data and columns.
 
 ---
 
-## §8. When NOT to reach for StatsPAI
+## §8. Choosing among Python backends
 
-Being the default backend does not make it the only one.
+StatsPAI is one supported backend, not an identification or quality guarantee.
+Choose the backend that best matches the estimator and replication target.
 
 - **`pyfixest`** is the fastest route for very large high-dimensional FE models
   and mirrors `fixest` syntax exactly — useful when porting R code line by line,

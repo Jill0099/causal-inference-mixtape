@@ -8,10 +8,11 @@ Stata `.do` files in the Mixtape repository.
 > the scripts are the proof they work. `python scripts/validate_all.py` runs all
 > 13 against the Mixtape's public data and asserts cross-backend agreement.
 >
-> **Python backend order of preference:** `StatsPAI` (`import statspai as sp`)
-> for causal estimators and their diagnostics → `pyfixest` for large
-> high-dimensional FE → `linearmodels` for deep IV/panel diagnostics →
-> `statsmodels` for plain OLS/GLM. See [`statspai-guide.md`](statspai-guide.md).
+> **Python backend roles:** `StatsPAI` covers a broad causal-estimator surface;
+> `pyfixest` targets large high-dimensional FE models; `linearmodels` provides
+> deep IV/panel diagnostics; and `statsmodels` covers plain OLS/GLM. Choose by
+> estimator maturity, independent validation, and replication requirements.
+> See [`statspai-guide.md`](statspai-guide.md).
 >
 > R and Stata snippets are provided for cross-language work and have **not** been
 > executed in this environment; treat them as syntax references.
@@ -477,11 +478,13 @@ fstat = float(np.squeeze(fs.f_test('instrument1 = instrument2 = 0').fvalue))
 print(f'First-stage F on the excluded instruments: {fstat:.2f}')
 ```
 
-**Two thresholds, not one.** `F > 10` (Staiger-Stock) bounds *relative bias*.
-Lee, McCrary, Moreira & Porter (2022) show that a valid 5% t-test needs a
-first-stage F above roughly **104.7**, or a tF-adjusted critical value. Card
-(1995) with `nearc4` has F ≈ 17.5: the point estimate is usable, a conventional
-t-test over-rejects. Say which criterion you are invoking.
+**Two thresholds, not one.** `F > 10` is a traditional relative-bias rule of
+thumb. In the single-instrument model studied by Lee, McCrary, Moreira & Porter
+(2022), conventional 5% t-ratio inference needs a first-stage F above roughly
+**104.7**, or a tF-adjusted critical value. This is not a universal cutoff for
+multiple-instrument, heteroskedastic, or clustered designs. Card (1995) with
+`nearc4` has F ≈ 17.5, so report weak-IV-robust inference rather than an
+unadjusted conventional t-test.
 
 ### Two IV bugs that survive code review
 
@@ -1037,7 +1040,9 @@ ivreghdfe delta_credit_draw (cash_flow = abn_snow_q1) ///
     absorb(naics4#yq county) cluster(naics4) first
 ```
 
-**First-stage F target**: > 10 (Stock-Yogo) or > 104.7 (Lee-McCrary-Moreira-Porter 2022 correction for t-ratio inference).
+**First-stage diagnostics**: report weak-IV-robust inference appropriate to the
+shift-share design. The Lee-McCrary-Moreira-Porter 104.7 result is for their
+single-instrument t-ratio setting and is not a universal threshold here.
 
 ---
 

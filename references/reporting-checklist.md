@@ -52,7 +52,8 @@ output and the one most often reported alone.
 - [ ] Balance table on pre-treatment covariates
 - [ ] Attrition rate, and whether it differs by arm
 - [ ] Clustering matches the level of randomisation
-- [ ] Randomisation inference if clusters are few
+- [ ] Randomisation inference based on the actual assignment mechanism,
+      especially when few clusters were randomised
 
 ### DiD (single treatment date)
 
@@ -89,8 +90,8 @@ Everything above, plus:
 
 - [ ] First-stage table
 - [ ] Reduced form
-- [ ] First-stage F, **against a stated criterion** (Staiger-Stock 10 vs
-      Lee et al. 2022's 104.7)
+- [ ] First-stage F and design-appropriate weak-IV diagnostics; Lee et al.
+      (2022)'s 104.7 threshold only for its applicable single-IV setting
 - [ ] Anderson-Rubin CI when the instrument is weak
 - [ ] Exclusion restriction argued in prose — not asserted
 - [ ] Monotonicity discussed

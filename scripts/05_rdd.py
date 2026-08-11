@@ -121,13 +121,18 @@ def main() -> None:
 
     # ---- 6. placebo cutoffs ---------------------------------------------
     section("6. Placebo cutoffs (there should be no jump away from 0.5)")
+    placebo_results = []
     for c in (0.35, 0.40, 0.60, 0.65):
-        try:
-            r = sp.rdrobust(data=df, y="score", x="lagdemvoteshare", c=c)
-            flag = "  <-- SUSPICIOUS" if abs(float(r.estimate) / float(r.se)) > 1.96 else ""
-            report(f"placebo cutoff c={c}", float(r.estimate), float(r.se), flag)
-        except Exception as exc:
-            print(f"  placebo c={c}: skipped ({exc})")
+        r = sp.rdrobust(data=df, y="score", x="lagdemvoteshare", c=c)
+        estimate, se = float(r.estimate), float(r.se)
+        require(
+            np.isfinite(estimate) and np.isfinite(se) and se > 0,
+            f"placebo cutoff c={c} must return a finite estimate and positive SE",
+        )
+        placebo_results.append((c, estimate, se))
+        flag = "  <-- SUSPICIOUS" if abs(estimate / se) > 1.96 else ""
+        report(f"placebo cutoff c={c}", estimate, se, flag)
+    require(len(placebo_results) == 4, "all requested placebo cutoffs must be estimated")
 
     # ---- 7. covariate balance -------------------------------------------
     section("7. Covariate continuity at the cutoff")

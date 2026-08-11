@@ -5,11 +5,11 @@ Data: ``castle.dta``, the same 2006-cohort DiD sample as ``02_did_2x2.py``.
 The applied literature has internalised "cluster your standard errors" and
 stopped there.  Three things go wrong after that:
 
-1.  **Too few clusters.**  Cluster-robust variance is consistent as the NUMBER
-    OF CLUSTERS goes to infinity, not the number of observations.  With 42
-    states -- or 20, or 6 -- the CRVE is downward biased and the t-statistic is
-    not t-distributed.  Cameron-Gelbach-Miller (2008) and Cameron-Miller (2015)
-    give the fix: the wild cluster bootstrap.
+1.  **Potentially too few effective clusters.**  Cluster-robust variance is
+    justified as the NUMBER OF CLUSTERS grows, not the number of observations.
+    There is no universal safe count: balance, leverage, and the number of
+    treated clusters all matter.  Wild cluster bootstrap and CR2-style
+    small-sample corrections are useful sensitivity analyses.
 2.  **Serial correlation.**  Bertrand, Duflo & Mullainathan (2004) showed that
     DiD on long panels with serially correlated outcomes produces rejection
     rates of 45% at a nominal 5% level when SEs ignore it.  Clustering on the
@@ -104,6 +104,8 @@ def main() -> None:
     boot_df = pd.concat([df[["l_homicide", "treat_post", "sid"]].reset_index(drop=True),
                          fe.reset_index(drop=True)], axis=1)
     regressors = ["treat_post", *fe.columns.tolist()]
+    statspai_bootstrap_ok = False
+    statspai_p_boot = np.nan
     try:
         wcb = sp.wild_cluster_bootstrap(
             data=boot_df, y="l_homicide", x=regressors, cluster="sid",
@@ -118,6 +120,12 @@ def main() -> None:
             abs(got - b_cl) < 1e-6,
             f"bootstrap must be run on the SAME specification (got {got:.5f}, want {b_cl:.5f})",
         )
+        statspai_p_boot = float(payload.get("p_boot", np.nan))
+        require(
+            np.isfinite(statspai_p_boot) and 0 <= statspai_p_boot <= 1,
+            "StatsPAI bootstrap p-value must lie in [0, 1]",
+        )
+        statspai_bootstrap_ok = True
         if payload.get("p_boot") == 0.0:
             print(
                 "\n  NOTE: p_boot reported as exactly 0.0 -- the bootstrap p-value omits\n"
@@ -128,12 +136,29 @@ def main() -> None:
         print(f"  sp.wild_cluster_bootstrap: {type(exc).__name__}: {str(exc)[:160]}")
 
     # pyfixest exposes the same thing on a fitted model
+    pyfixest_bootstrap_ok = False
+    pyfixest_p_boot = np.nan
     try:
         fit = pf.feols("l_homicide ~ treat_post | sid + year", data=df, vcov={"CRV1": "sid"})
         boot = fit.wildboottest(param="treat_post", reps=1999, seed=SEED)
         print(f"\n  pyfixest wildboottest:\n{boot}")
+        if isinstance(boot, pd.Series):
+            pyfixest_p_boot = float(boot.get("Pr(>|t|)", np.nan))
+        elif isinstance(boot, dict):
+            pyfixest_p_boot = float(boot.get("Pr(>|t|)", boot.get("p_boot", np.nan)))
+        require(
+            np.isfinite(pyfixest_p_boot) and 0 <= pyfixest_p_boot <= 1,
+            "pyfixest bootstrap p-value must lie in [0, 1]",
+        )
+        pyfixest_bootstrap_ok = True
     except Exception as exc:
         print(f"  pyfixest wildboottest unavailable: {type(exc).__name__}: {str(exc)[:120]}")
+    require(statspai_bootstrap_ok, "StatsPAI wild cluster bootstrap is a required validation")
+    require(pyfixest_bootstrap_ok, "pyfixest wild cluster bootstrap is a required cross-check")
+    require(
+        abs(statspai_p_boot - pyfixest_p_boot) < 0.05,
+        "independent bootstrap p-values must agree within a 0.05 Monte Carlo tolerance",
+    )
 
     # ---- 4. how bad does it get? -----------------------------------------
     section("4. Shrinking the cluster count on purpose")
@@ -160,14 +185,15 @@ def main() -> None:
         print(f"  {sub['sid'].nunique():>9}{m.params['treat_post']:>12.5f}"
               f"{m.bse['treat_post']:>12.5f}{m.pvalues['treat_post']:>10.4f}")
     print(
-        "  The point estimate wanders because the sample changes; what matters is that\n"
-        "  the analytic p-value is a lottery once the cluster count gets small."
+        "  The point estimate also wanders because each row changes the sample.  This\n"
+        "  sweep illustrates sensitivity; it does not identify a universal cluster-count\n"
+        "  cutoff.  Balance, leverage, and the number of treated clusters all matter."
     )
     print(
-        "\n  Rules of thumb: below ~42 clusters treat the analytic p-value as\n"
-        "  suggestive only; below ~20 report the wild cluster bootstrap as the\n"
-        "  headline; below ~10 consider randomisation inference instead, which needs\n"
-        "  no asymptotics at all (see 09_randomization_inference.py)."
+        "\n  Report conventional CRVE together with a small-sample method such as the\n"
+        "  wild cluster bootstrap when asymptotics are doubtful.  Randomisation\n"
+        "  inference is available only when the treatment-assignment mechanism makes\n"
+        "  the proposed permutations valid; a small cluster count alone is not enough."
     )
 
     # ---- 5. two-way clustering -------------------------------------------
@@ -183,9 +209,9 @@ def main() -> None:
         print(f"  year clustering unavailable: {exc}")
     print(
         "  With 11 years, clustering on year is itself a few-clusters problem.  Two-way\n"
-        "  clustering needs BOTH dimensions to have many groups; it is not a free\n"
-        "  upgrade.  If one dimension is small, cluster on the large one and defend\n"
-        "  the other with a bootstrap or randomisation inference."
+        "  clustering needs adequate information in BOTH dimensions; it is not a free\n"
+        "  upgrade.  Use a small-sample correction and justify the dependence structure.\n"
+        "  Randomisation inference is an option only under a defensible assignment design."
     )
     require(np.isfinite(b1) and np.isfinite(s1), "clustered estimation must return finite values")
 

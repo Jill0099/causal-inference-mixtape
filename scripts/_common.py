@@ -150,8 +150,7 @@ def design_facts(
     print(f"  N observations                               {len(df):,}")
     if cluster is not None and cluster in df.columns:
         g = df[cluster].nunique()
-        flag = "  <-- FEW CLUSTERS: use wild cluster bootstrap" if g < 42 else ""
-        print(f"  N clusters ({cluster})".ljust(46) + f"{g:,}{flag}")
+        print(f"  N clusters ({cluster})".ljust(46) + f"{g:,}")
     if treat_mask is not None:
         base = df.loc[~treat_mask.astype(bool), outcome].mean()
         print(f"  Treated share                                {treat_mask.mean():.3f}")

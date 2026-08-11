@@ -4,12 +4,12 @@ Package recommendations and coverage, refreshed against installed versions
 (StatsPAI 1.21.0, pyfixest 0.50.1, statsmodels 0.14.6, linearmodels 6.1,
 pandas 3.0.2, numpy 2.4.4).
 
-> **The headline change from older versions of this table: Python no longer has
-> holes.** Every method previously listed as "Python: **None**" — Bacon
+> **The headline change from older versions of this table: Python coverage has
+> expanded.** Every method previously listed as "Python: **None**" — Bacon
 > decomposition, Callaway-Sant'Anna, Sun-Abraham, McCrary, CEM, synthetic
 > control, DAGs, wild cluster bootstrap — has a native Python implementation
-> today. See [`statspai-guide.md`](statspai-guide.md). Do not tell a user to
-> leave Python for any of them.
+> today. See [`statspai-guide.md`](statspai-guide.md). Choose a backend by
+> estimator maturity, independent validation, and replication requirements.
 
 ---
 
@@ -74,7 +74,8 @@ pandas 3.0.2, numpy 2.4.4).
 | Double / debiased ML | ✔ `sp.dml`, DoubleML, EconML | ✔ DoubleML | — |
 | Multiple-testing correction | ✔ `sp.romano_wolf`, `sp.benjamini_hochberg` | ✔ `p.adjust`, wildrwolf | ✔ rwolf, multproc |
 
-Bold rows are the ones older cheatsheets list as Python gaps. None of them are.
+Bold rows are methods older cheatsheets listed as Python gaps; implementations
+now exist, but maturity and validation still need method-specific assessment.
 
 ---
 
@@ -82,7 +83,7 @@ Bold rows are the ones older cheatsheets list as Python gaps. None of them are.
 
 | Package | Use it for | Install |
 |---|---|---|
-| **statspai** | Default backend: causal estimators + diagnostics + export | `pip install statspai` |
+| **statspai** | Broad causal-estimator surface, diagnostics, and export | `pip install statspai` |
 | pyfixest | Fastest HDFE; fixest-syntax ports from R; independent wild bootstrap | `pip install pyfixest` |
 | linearmodels | Deepest IV / panel diagnostics (overid, Kleibergen-Paap, panel GMM) | `pip install linearmodels` |
 | statsmodels | Plain OLS / GLM / logit; the formula layer | `pip install statsmodels` |

@@ -135,7 +135,7 @@ def main() -> None:
     print(
         "  Failing to reject is NOT proof of parallel trends.  Report the power of\n"
         "  this test against an economically meaningful linear trend, or move to\n"
-        "  Honest DiD -- see 12_honest_did.py."
+        "  Honest DiD -- see 11_honest_did.py."
     )
 
     # ---- the plot --------------------------------------------------------
@@ -185,13 +185,24 @@ def main() -> None:
         cluster="sid",
     )
     sp_tidy = es.tidy()
-    sp_ev = sp_tidy[sp_tidy["type"] == "event_study"].set_index("term")
+    sp_rows = sp_tidy[sp_tidy["type"] == "event_study"].copy()
+    expected_terms = {f"event_{p:+d}" for p in periods}
+    require(
+        sp_rows["term"].is_unique,
+        "StatsPAI event-study output must contain exactly one row per term; "
+        "duplicate terms indicate an incompatible backend release",
+    )
+    require(
+        set(sp_rows["term"]) == expected_terms,
+        "StatsPAI event-study output must contain the complete requested window",
+    )
+    sp_ev = sp_rows.set_index("term")
     for p, c in zip(periods, coefs):
-        term = f"event_{p:+d}".replace("+0", "+0")
-        if term in sp_ev.index:
-            gap = abs(sp_ev.loc[term, "estimate"] - c)
-            print(f"  {term:<12} StatsPAI {sp_ev.loc[term, 'estimate']:+.5f}   hand-built {c:+.5f}   gap {gap:.2e}")
-            require(gap < 1e-4, f"StatsPAI and the hand-built spec must agree at {term}")
+        term = f"event_{p:+d}"
+        sp_estimate = float(sp_ev.at[term, "estimate"])
+        gap = abs(sp_estimate - c)
+        print(f"  {term:<12} StatsPAI {sp_estimate:+.5f}   hand-built {c:+.5f}   gap {gap:.2e}")
+        require(gap < 1e-4, f"StatsPAI and the hand-built spec must agree at {term}")
     print(
         "\n  Both routes agree to machine precision on every coefficient (gaps ~1e-16).\n"
         "  Standard errors differ in the 3rd decimal only, from the df adjustment."

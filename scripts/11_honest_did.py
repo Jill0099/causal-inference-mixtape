@@ -64,48 +64,67 @@ def main() -> None:
 
     # ---- 2. the conventional pre-test, and its power ---------------------
     section("2. The conventional pre-trend test -- and what it can actually detect")
-    pre = getattr(dyn, "pretrend_test", None)
-    if callable(pre):
-        try:
-            print(f"  pre-trend test: {pre()}")
-        except Exception as exc:
-            print(f"  pre-trend test unavailable: {exc}")
-    try:
-        power = sp.pretrends_power(dyn, alpha=0.05)
-        print("\n  Power analysis (Roth 2022):")
-        for k in ("power", "power_joint", "alpha", "df", "noncentrality", "warning"):
-            if k in power:
-                print(f"    {k:<18} {power[k]}")
-        p_ind, p_joint = power.get("power"), power.get("power_joint")
-        if p_ind is not None and p_joint is not None:
-            print(
-                f"\n  Read these numbers literally.  Against the trend this design is powered\n"
-                f"  to detect, an individual pre-period test catches a violation only\n"
-                f"  {100 * float(p_ind):.0f}% of the time, and the JOINT test only "
-                f"{100 * float(p_joint):.0f}%.\n"
-                "  Conventional practice wants 80%.  A pre-trend plot that 'looks flat'\n"
-                "  under this much noise is close to uninformative -- which is precisely\n"
-                "  why the sensitivity analysis below replaces it rather than supplements it."
-            )
-    except Exception as exc:
-        print(f"  sp.pretrends_power: {type(exc).__name__}: {str(exc)[:130]}")
+    pre = getattr(cs, "pretrend_test", None)
+    require(callable(pre), "Callaway-Sant'Anna result must expose a pre-trend test")
+    pre_result = pre()
+    require(isinstance(pre_result, dict), "pre-trend test must return a result mapping")
+    pre_stat = float(pre_result.get("statistic", np.nan))
+    pre_pvalue = float(pre_result.get("pvalue", np.nan))
+    require(
+        np.isfinite(pre_stat) and np.isfinite(pre_pvalue) and 0 <= pre_pvalue <= 1,
+        "pre-trend test must return a finite statistic and p-value in [0, 1]",
+    )
+    print(f"  pre-trend test: {pre_result}")
+    power = sp.pretrends_power(dyn, alpha=0.05)
+    print("\n  Power analysis (Roth 2022):")
+    for k in ("power", "power_joint", "alpha", "df", "noncentrality", "warning"):
+        if k in power:
+            print(f"    {k:<18} {power[k]}")
+    p_ind, p_joint = power.get("power"), power.get("power_joint")
+    require(
+        p_ind is not None and p_joint is not None,
+        "pre-trend power must return both power measures",
+    )
+    require(
+        np.isfinite(float(p_ind)) and np.isfinite(float(p_joint)),
+        "pre-trend power measures must be finite",
+    )
+    print(
+        f"\n  Read these numbers literally.  Against the trend this design is powered\n"
+        f"  to detect, an individual pre-period test catches a violation only\n"
+        f"  {100 * float(p_ind):.0f}% of the time, and the JOINT test only "
+        f"{100 * float(p_joint):.0f}%.\n"
+        "  Conventional practice wants 80%.  A pre-trend plot that 'looks flat'\n"
+        "  under this much noise is close to uninformative -- which is precisely\n"
+        "  why the sensitivity analysis below replaces it rather than supplements it."
+    )
 
     # ---- 3. Honest DiD ----------------------------------------------------
     section("3. Rambachan-Roth robust confidence sets over M")
     grid = [0.0, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0]
-    hd = None
-    for method in ("relative_magnitude", "smoothness"):
-        try:
-            hd = sp.honest_did(dyn, e=0, m_grid=grid, method=method)
-            print(f"  method = {method}")
-            print("  " + str(hd).replace("\n", "\n  "))
-            break
-        except Exception as exc:
-            print(f"  {method}: {type(exc).__name__}: {str(exc)[:130]}")
+    method = "relative_magnitude"
+    hd = sp.honest_did(dyn, e=0, m_grid=grid, method=method)
+    print(f"  method = {method}")
+    print("  " + str(hd).replace("\n", "\n  "))
 
     # ---- 4. the breakdown value -----------------------------------------
     section("4. The number to put in the paper: the breakdown M")
     table = hd if isinstance(hd, pd.DataFrame) else getattr(hd, "table", None)
+    require(
+        isinstance(table, pd.DataFrame)
+        and {"M", "ci_lower", "ci_upper", "rejects_zero"}.issubset(table.columns),
+        "Honest DiD must return M, confidence bounds, and rejection decisions",
+    )
+    require(table["M"].is_unique, "Honest DiD must return exactly one row per M value")
+    require(
+        len(table) == len(grid)
+        and np.allclose(np.sort(table["M"].to_numpy(dtype=float)), np.asarray(grid)),
+        "Honest DiD must return the complete requested M grid",
+    )
+    require(
+        np.isfinite(table[["M", "ci_lower", "ci_upper"]].to_numpy(dtype=float)).all(),
+        "Honest DiD sensitivity bounds must be finite",
+    )
     if isinstance(table, pd.DataFrame) and "rejects_zero" in table.columns:
         rejecting = table.loc[table["rejects_zero"], "M"]
         failing = table.loc[~table["rejects_zero"], "M"]

@@ -1,0 +1,26 @@
+name: Validate runnable templates
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: scripts/requirements.lock.txt
+      - name: Install validated dependencies
+        run: python -m pip install --require-hashes -r scripts/requirements.lock.txt
+      - name: Run all template validations
+        run: python scripts/validate_all.py

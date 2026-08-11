@@ -9,7 +9,7 @@ Built from Scott Cunningham's [*Causal Inference: The
 Mixtape*](https://mixtape.scunning.com/), extended with 25 Journal of Finance
 (2021–2024) applications.
 
-**Languages:** Python (StatsPAI) · R · Stata
+**Languages:** Python (StatsPAI, pyfixest, linearmodels, statsmodels) · R · Stata
 
 ---
 
@@ -53,16 +53,15 @@ Selected results the scripts verify:
 
 ---
 
-## Python: StatsPAI is the default backend
+## Python backends
 
 ```bash
 pip install statspai
 ```
 
-[StatsPAI](https://github.com/brycewang-stanford/statspai) covers the Stata/R
-causal-inference surface natively. **The "Python can't do X, switch to R"
-advice in older cheatsheets is out of date** — every method previously listed as
-a Python gap now has a native implementation:
+[StatsPAI](https://github.com/brycewang-stanford/statspai) provides broad native
+coverage of the Stata/R causal-inference surface. Several methods listed as
+Python gaps in older cheatsheets now have Python implementations:
 
 | Old claim | Reality |
 |---|---|
@@ -81,8 +80,13 @@ map, the recommended workflow, and **eleven non-obvious gotchas found by
 actually running it** — including one where a single keyword argument moves an
 estimate by $9,400 against a known truth.
 
-Fallbacks: `pyfixest` → `linearmodels` → `statsmodels`. R and Stata when a
-referee asks for a specific package.
+Complementary backends include `pyfixest` for high-dimensional FE,
+`linearmodels` for IV/panel diagnostics, and `statsmodels` for OLS/GLM, with R
+and Stata when a reference implementation or replication target requires them.
+Choose by estimator maturity and independent validation, not language alone.
+
+**Disclosure:** the v3 StatsPAI integration was contributed by StatsPAI's
+maintainer. The runnable scripts retain independent cross-checks where suitable.
 
 ---
 
@@ -147,7 +151,7 @@ git clone https://github.com/Jill0099/causal-inference-mixtape.git \
 To run the validation scripts:
 
 ```bash
-pip install -r scripts/requirements.txt
+pip install --require-hashes -r scripts/requirements.lock.txt
 python scripts/validate_all.py
 ```
 
@@ -160,7 +164,7 @@ causal-inference-mixtape/
 ├── SKILL.md                                  # Core skill (auto-loaded when triggered)
 ├── references/
 │   ├── design-router.md                      # Assignment mechanism -> design -> estimator
-│   ├── statspai-guide.md                     # The Python backend: API, workflow, gotchas
+│   ├── statspai-guide.md                     # StatsPAI API/integration guide and gotchas
 │   ├── method-patterns.md                    # Code templates, Python / R / Stata
 │   ├── mixtape-core.md                       # Potential outcomes, DAGs, LATE, panel FE
 │   ├── inference-and-standard-errors.md      # Clustering, bootstrap, Honest DiD, RI
@@ -173,7 +177,8 @@ causal-inference-mixtape/
 │   ├── _common.py                            # Mixtape data loader, backend helpers
 │   ├── 01_potential_outcomes.py ... 11_honest_did.py
 │   ├── simulations/                          # Collider bias, staggered TWFE bias
-│   ├── requirements.txt
+│   ├── requirements.txt                      # Direct validated dependencies
+│   ├── requirements.lock.txt                 # Fully pinned, hashed environment
 │   └── validate_all.py                       # Run everything, report PASS / FAIL
 └── prompts/
     ├── 01-implement-method.md

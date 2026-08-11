@@ -42,27 +42,33 @@ Full tree, estimator choice within each design, and a StatsPAI second opinion
 
 ---
 
-## Python backend: StatsPAI first
+## Python backends: choose by estimator and replication target
 
 ```python
 import statspai as sp    # pip install statspai
 ```
 
-**[StatsPAI](https://github.com/brycewang-stanford/statspai) is the default
-Python backend for this skill.** It covers the Stata/R causal-inference surface
+**[StatsPAI](https://github.com/brycewang-stanford/statspai) is one supported
+Python backend for this skill.** It covers a broad Stata/R causal-inference surface
 natively — `regress`, `ivregress`, `reghdfe`, `csdid`, `rdrobust`, `synth`,
 `psmatch2`, `outreg2` and their R equivalents — plus Bacon decomposition,
 Callaway-Sant'Anna, Sun-Abraham, Honest DiD, wild cluster bootstrap, DAG
 identification, and Conley SEs.
 
-**Do not tell a user to leave Python for a method.** The gaps that justified
-that advice are closed. See **`references/statspai-guide.md`** for the full API
-map, the recommended workflow, verified cross-backend numbers, and eleven
-non-obvious gotchas found by actually running it.
+Do not assume that Python lacks a method; check current implementations first.
+Choose StatsPAI, pyfixest, linearmodels, R, or Stata according to estimator
+maturity, independent validation, and the replication target. See
+**`references/statspai-guide.md`** for the StatsPAI API map and cross-backend
+checks.
 
-Fallbacks, in order: `pyfixest` (fastest HDFE, fixest syntax, independent wild
-bootstrap) → `linearmodels` (deepest IV/panel diagnostics) → `statsmodels`
-(plain OLS/GLM). R and Stata when a referee asks for a specific package.
+**Disclosure:** the v3 StatsPAI integration was contributed by StatsPAI's
+maintainer. Keep independent cross-checks for headline estimates and do not
+treat package choice as an identification argument.
+
+Complementary backends: `pyfixest` for fast HDFE and an independent wild
+bootstrap; `linearmodels` for deep IV/panel diagnostics; `statsmodels` for plain
+OLS/GLM; and R or Stata when the reference implementation or replication target
+requires them.
 
 There is also an **MCP server** (`statspai-mcp`): prefer it when the user wants
 an *answer*; prefer generating a script when they want a reproducible artefact.
@@ -71,7 +77,7 @@ an *answer*; prefer generating a script when they want a reproducible artefact.
 
 ## Methods Covered
 
-| Method | Python (preferred) | R | Stata | Script | Reference |
+| Method | Python options | R | Stata | Script | Reference |
 |---|---|---|---|---|---|
 | Potential outcomes / selection bias | — | — | — | `01` | `mixtape-core.md` §1 |
 | OLS / regression | `sp.regress` | estimatr | `reg`, `reghdfe` | — | `method-patterns.md` §1 |
@@ -126,9 +132,11 @@ Each of these is demonstrated live in a script rather than asserted.
 4. **"The pre-trends look flat" is not a test.** On `castle.dta` that test has
    power 0.50 individually and 0.14 jointly. Report Honest DiD and the breakdown
    M instead. → `11`
-5. **Too few clusters.** CRVE is consistent in the number of clusters, not
-   observations. Below ~50 report a wild cluster bootstrap; below ~10 use
-   randomisation inference. Below 42 clusters analytic p-values are a lottery. → `10`
+5. **Too few effective clusters.** CRVE is justified as the number of clusters
+   grows, but there is no universal safe cutoff: imbalance, leverage, and the
+   number of treated clusters matter. Add a small-sample correction when the
+   approximation is doubtful. Use randomisation inference only when the
+   assignment mechanism justifies the permutations. → `10`
 6. **Clustering finer than assignment.** State-year instead of state shrinks the
    SE by 57% on `castle.dta`. Cluster where treatment was assigned. → `10`
 7. **Manual two-step 2SLS.** Reproduces the point estimate exactly and reports
@@ -171,7 +179,7 @@ Each of these is demonstrated live in a script rather than asserted.
 | File | What it is for |
 |---|---|
 | `references/design-router.md` | Assignment mechanism → design → estimator → required diagnostics |
-| `references/statspai-guide.md` | **The Python backend**: API map, workflow, verified numbers, 11 gotchas |
+| `references/statspai-guide.md` | StatsPAI API/integration guide, verified numbers, and 11 gotchas |
 | `references/method-patterns.md` | Code templates for all methods, Python / R / Stata |
 | `references/mixtape-core.md` | Potential outcomes, DAGs, matching theory, LATE, panel FE, staggered DiD |
 | `references/inference-and-standard-errors.md` | Clustering, small-cluster bootstrap, Honest DiD, RI, multiple testing |

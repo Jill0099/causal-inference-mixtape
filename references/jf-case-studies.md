@@ -414,7 +414,7 @@ feols(delta_equity_share ~ republican*post2012 + log_wealth
 | Check | DiD | IV | RDD | Event study |
 |-------|-----|----|-----|-------------|
 | Pre-trends plot | ✅ | — | — | ✅ |
-| First-stage F > 10 | — | ✅ | — | — |
+| Design-appropriate weak-IV diagnostics/inference | — | ✅ | — | — |
 | McCrary density | — | — | ✅ | — |
 | Placebo (timing/threshold/event) | ✅ | ✅ | ✅ | ✅ |
 | Bandwidth/window robustness | — | — | ✅ | ✅ |

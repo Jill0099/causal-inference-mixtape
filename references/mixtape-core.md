@@ -194,10 +194,12 @@ differ from the average worker.
 
 ### Weak instruments: two thresholds
 
-`F > 10` (Staiger-Stock) bounds *relative bias*. Lee, McCrary, Moreira & Porter
-(2022) show valid 5% t-test inference needs `F > 104.7`, or a tF-adjusted
-critical value. State which one you are invoking. Card's `nearc4` gives F ≈ 17.5:
-usable point estimate, over-rejecting t-test.
+`F > 10` is a traditional relative-bias rule of thumb. In the single-instrument
+model studied by Lee, McCrary, Moreira & Porter (2022), conventional 5% t-ratio
+inference requires `F > 104.7`, or a tF-adjusted critical value. That number is
+not a universal cutoff for multiple-instrument, heteroskedastic, or clustered
+designs. State the model and criterion you are invoking. Card's `nearc4` gives
+F ≈ 17.5, so unadjusted t-ratio inference is not justified by the 104.7 result.
 
 When the instrument is weak, report an **Anderson-Rubin** confidence interval —
 it is valid regardless of instrument strength (`sp.anderson_rubin_ci`).

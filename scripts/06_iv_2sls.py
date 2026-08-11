@@ -21,10 +21,11 @@ because they produce plausible numbers:
     (not as a regressor) so consistency does not depend on the first-stage
     functional form.
 
-Also covered: the weak-instrument threshold.  "F > 10" (Staiger-Stock) controls
-relative bias; Lee, McCrary, Moreira & Porter (2022) show that valid 5% t-test
-inference needs a first-stage F above roughly 104.7, or an adjusted critical
-value.  Report which criterion you are using.
+Also covered: the weak-instrument threshold.  "F > 10" is an old relative-bias
+rule of thumb; in the single-instrument model studied by Lee, McCrary, Moreira
+& Porter (2022), conventional 5% t-ratio inference needs a first-stage F above
+roughly 104.7, or an adjusted critical value.  This is not a universal cutoff
+for multiple-instrument, heteroskedastic, or clustered designs.
 """
 
 from __future__ import annotations
@@ -71,14 +72,15 @@ def main() -> None:
     fstat = float(np.squeeze(ftest.fvalue))
     print(f"  First-stage F on the excluded instrument: {fstat:.2f}")
     verdict = (
-        "passes Staiger-Stock F>10 but FAILS the Lee et al. (2022) F>104.7 bar"
+        "passes the F>10 rule but FAILS the single-IV Lee et al. (2022) F>104.7 bar"
         if 10 < fstat < 104.7
-        else ("passes both" if fstat >= 104.7 else "WEAK by any standard")
+        else ("passes both stated thresholds" if fstat >= 104.7 else "fails both stated thresholds")
     )
     print(f"  -> {verdict}")
     print(
-        "  With 10 < F < 104.7 the point estimate is usable but a conventional 5%\n"
-        "  t-test over-rejects.  Report tF-adjusted or Anderson-Rubin inference."
+        "  In this single-instrument setting, 10 < F < 104.7 does not justify an\n"
+        "  unadjusted 5% t-test.  Report tF-adjusted or Anderson-Rubin inference;\n"
+        "  use design-appropriate weak-IV diagnostics in other IV settings."
     )
 
     # ---- 2. reduced form -------------------------------------------------

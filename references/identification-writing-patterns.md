@@ -171,12 +171,14 @@ it is a misreading.
 - [ ] Staggered-DiD: Bacon decomposition **and** a heterogeneity-robust headline
       estimator (Callaway-Sant'Anna / Sun-Abraham / BJS), TWFE as benchmark only
 - [ ] Clustering at treatment-assignment level; report cluster count **and
-      treated-cluster count**; wild cluster bootstrap below ~50 clusters
+      treated-cluster count**; add a small-sample correction when effective
+      cluster count, imbalance, or leverage makes conventional CRVE doubtful
 - [ ] Triple-difference (DDD) when available (Bennedsen)
 - [ ] Diff-in-disc if there is a threshold (Bennedsen)
 
 ### 5.2 IV / 2SLS
-- [ ] First-stage F > 10 (Stock-Yogo) or > 104 (Lee et al. 2022 correction)
+- [ ] First-stage F plus design-appropriate weak-IV inference; use Lee et al.
+      (2022)'s 104.7 threshold only in its applicable single-IV setting
 - [ ] Exclusion-restriction narrative (why the IV affects Y only through D)
 - [ ] Over-identification test (Hansen J) if multiple IVs
 - [ ] Reduced-form + first-stage visualization

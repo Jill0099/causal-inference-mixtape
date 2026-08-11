@@ -55,16 +55,19 @@ do not have large T.
 ## §3. Too few clusters
 
 Cluster-robust variance is consistent as the **number of clusters** grows, not
-as the number of observations grows. With few clusters, the CRVE is downward
-biased and the t-statistic is not t-distributed.
+as the number of observations grows. With few effective clusters, the CRVE can
+be downward biased and conventional reference distributions can over-reject. There is no
+universal count at which clusters become "many": cluster-size imbalance,
+leverage, treatment balance, and the number of treated clusters all affect the
+quality of the approximation.
 
-| Clusters | What to do |
+| Diagnostic situation | What to do |
 |---|---|
-| > 50 | Analytic CRVE is fine. |
-| 30–50 | Report the wild cluster bootstrap alongside; it should agree. |
-| 10–30 | **Wild cluster bootstrap is the headline.** Analytic p-values are suggestive only. |
-| < 10 | Randomisation inference. No asymptotic method is trustworthy here. |
-| Few TREATED clusters | Worst case, regardless of the total. Rademacher weights have only `2^G` distinct draws; with `G < 12` enumerate them or switch to Webb weights. |
+| Balanced design, low leverage, many treated and control clusters | Report analytic CRVE and document the cluster count. |
+| Approximation is doubtful | Add CR2/Satterthwaite or a null-imposed wild cluster bootstrap and report sensitivity. |
+| Few treated clusters or severe imbalance | Treat conventional CRVE cautiously; inspect effective clusters and bootstrap support. |
+| Known/random assignment mechanism | Randomisation inference may be used with permutations justified by that mechanism. |
+| Rademacher support is small | There are only `2^G` sign patterns; enumerate when feasible or consider Webb weights. |
 
 The count that matters is often the number of **treated** clusters, not the
 total. Twenty control states and two treated states is a two-cluster problem.
@@ -118,8 +121,9 @@ agreeing, against an analytic CRVE p of 0.4436.
 have many groups. On an 11-year panel, clustering on year is itself a
 few-clusters problem — on `castle.dta` it produces an SE five times smaller than
 state clustering and a t-statistic of 3.52 instead of 0.80. If one dimension is
-small, cluster on the large one and defend the other with a bootstrap or
-randomisation inference.
+small, use an appropriate small-sample correction and justify the assumed
+dependence structure. Randomisation inference is an alternative only when the
+assignment mechanism justifies the permutations.
 
 **Conley spatial standard errors** when observations are correlated by
 geographic distance rather than by group membership:
@@ -233,12 +237,15 @@ conservative than Bonferroni.
 
 - [ ] Cluster level matches the level of treatment assignment, and is stated
 - [ ] Number of clusters **and number of treated clusters** reported
-- [ ] Wild cluster bootstrap if clusters < 50; randomisation inference if < 10
+- [ ] Effective cluster count, imbalance and leverage assessed; small-sample
+      correction reported when conventional cluster asymptotics are doubtful
+- [ ] Randomisation inference used only with an explicit assignment mechanism
 - [ ] Two-way clustering only if both dimensions have many groups
 - [ ] DiD: event-study plot **plus** its power **plus** an Honest DiD breakdown M
 - [ ] RDD: manipulation test before any estimate; robust bias-corrected CI
-- [ ] IV: first-stage F against the stated criterion (Staiger-Stock 10 vs
-      Lee et al. 104.7); Anderson-Rubin CI when the instrument is weak
+- [ ] IV: weak-IV diagnostics matched to the design; Lee et al. 104.7 invoked
+      only for the applicable single-instrument t-ratio setting; Anderson-Rubin
+      or other weak-IV-robust inference reported when needed
 - [ ] Synthetic control: permutation rank, not a t-ratio
 - [ ] Matching: Abadie-Imbens variance, not the post-match OLS default
 - [ ] Multiple testing correction whenever more than a handful of tests are shown

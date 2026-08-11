@@ -118,13 +118,15 @@ def main() -> None:
 
     # ---- 5. Borusyak-Jaravel-Spiess imputation --------------------------
     section("5. Borusyak-Jaravel-Spiess imputation estimator")
-    try:
-        bjs = sp.did_imputation(
-            data=df, y="l_homicide", group="sid", time="year", first_treat="first_treat"
-        )
-        print("  " + bjs.tidy().to_string(index=False).replace("\n", "\n  "))
-    except Exception as exc:
-        print(f"  (skipped: {exc})")
+    bjs = sp.did_imputation(
+        data=df, y="l_homicide", group="sid", time="year", first_treat="first_treat"
+    )
+    bjs_tidy = bjs.tidy()
+    require(
+        len(bjs_tidy) > 0 and np.isfinite(bjs_tidy["estimate"]).all(),
+        "BJS imputation must return at least one finite estimate",
+    )
+    print("  " + bjs_tidy.to_string(index=False).replace("\n", "\n  "))
 
     # ---- verdict ---------------------------------------------------------
     section("Verdict")

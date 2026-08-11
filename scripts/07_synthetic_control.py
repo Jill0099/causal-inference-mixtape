@@ -78,6 +78,7 @@ def main() -> None:
         placebo=True,
     )
     print(sc.summary())
+    require(np.isfinite(float(sc.estimate)), "synthetic control ATT must be finite")
 
     # ---- 2. pre-treatment fit is the credibility test --------------------
     section("2. Pre-treatment fit -- the credibility test")
@@ -86,13 +87,16 @@ def main() -> None:
     diag = dict(sc.diagnostics or {})
     pre = info.get("pre_treatment_rmse")
     scale = df.loc[(df["statefip"] == TREATED_STATE) & (df["year"] < TREAT_YEAR), "bmprison"].mean()
+    require(
+        pre is not None and np.isfinite(float(pre)) and float(pre) >= 0,
+        "synthetic control must report a finite non-negative pre-treatment RMSE",
+    )
     print(f"  pre-treatment periods   {info.get('n_pre_periods')}")
     print(f"  post-treatment periods  {info.get('n_post_periods')}")
     print(f"  donors                  {info.get('n_donors')}")
-    if pre is not None:
-        print(f"  pre-treatment RMSE      {float(pre):,.2f}")
-        print(f"  treated pre-mean        {scale:,.2f}")
-        print(f"  RMSE as % of pre-mean   {100 * float(pre) / scale:.2f}%")
+    print(f"  pre-treatment RMSE      {float(pre):,.2f}")
+    print(f"  treated pre-mean        {scale:,.2f}")
+    print(f"  RMSE as % of pre-mean   {100 * float(pre) / scale:.2f}%")
     print(f"  effective donors (1/HHI){diag.get('effective_n_donors', 'n/a'):>8}")
     print(
         "  A synthetic control that cannot track the treated unit BEFORE treatment\n"
@@ -116,13 +120,21 @@ def main() -> None:
             w = pd.Series(arr[:, 1], index=arr[:, 0].astype(int))
         elif arr.ndim == 1:
             w = pd.Series(arr)
-    if w is not None:
-        w = w[w.abs() > 1e-4].sort_values(ascending=False)
-        print("  statefip   weight")
-        for unit, val in w.items():
-            print(f"  {str(unit):<10} {val:.4f}")
-        print(f"\n  {len(w)} donors carry non-trivial weight; top donor holds {w.iloc[0]:.1%}")
-        print(f"  weights sum to {w.sum():.4f} (should be 1, and all non-negative)")
+    require(w is not None and len(w) > 0, "synthetic control must report donor weights")
+    full_weights = w.astype(float)
+    require(np.isfinite(full_weights.to_numpy()).all(), "all donor weights must be finite")
+    require((full_weights >= -1e-10).all(), "donor weights must be non-negative")
+    require(np.isclose(full_weights.sum(), 1.0, atol=1e-6), "donor weights must sum to one")
+    displayed_weights = full_weights[full_weights.abs() > 1e-4].sort_values(ascending=False)
+    require(len(displayed_weights) > 0, "at least one donor must carry non-trivial weight")
+    print("  statefip   weight")
+    for unit, val in displayed_weights.items():
+        print(f"  {str(unit):<10} {val:.4f}")
+    print(
+        f"\n  {len(displayed_weights)} donors carry non-trivial weight; "
+        f"top donor holds {displayed_weights.iloc[0]:.1%}"
+    )
+    print(f"  weights sum to {full_weights.sum():.4f} (should be 1, and all non-negative)")
     print(
         "  Check for interpolation bias: if the optimiser leans on donors far from\n"
         "  the treated unit on the predictors, the 'counterfactual' is an\n"
@@ -131,20 +143,22 @@ def main() -> None:
 
     # ---- 4. inference by permutation ------------------------------------
     section("4. Inference -- the placebo distribution IS the p-value")
+    pvalue = float(sc.pvalue) if sc.pvalue is not None else np.nan
+    require(np.isfinite(pvalue) and 0 <= pvalue <= 1, "permutation p-value must lie in [0, 1]")
+    require(int(info.get("n_placebos", 0)) > 0, "permutation inference requires placebo units")
     report("ATT (post-treatment average gap)", float(sc.estimate),
            float(sc.se) if np.isfinite(sc.se or np.nan) else None)
-    print(f"  permutation p-value: {float(sc.pvalue):.4f}"
-          if sc.pvalue is not None else "  permutation p-value unavailable")
+    print(f"  permutation p-value: {pvalue:.4f}")
     print(
         "\n  Interpretation: this is the fraction of donor states that, when falsely\n"
         "  assigned treatment in 1993, produced a post/pre RMSPE ratio at least as\n"
         "  extreme as Texas's.  With ~50 donors the finest attainable p-value is\n"
         f"  about {1 / df['statefip'].nunique():.3f}; do not quote more precision than that."
     )
-    if sc.pvalue is not None and sc.se:
+    if sc.se:
         print(
             f"\n  READ THIS CONTRAST.  The ratio estimate/se is {float(sc.estimate) / float(sc.se):.2f},\n"
-            f"  which looks overwhelming, while the permutation p-value is {float(sc.pvalue):.2f}.\n"
+            f"  which looks overwhelming, while the permutation p-value is {pvalue:.2f}.\n"
             "  The first number is not a valid test: with ONE treated unit there is no\n"
             "  sampling distribution to appeal to.  The permutation p-value is the\n"
             "  inference.  Quoting the t-ratio here would be a serious over-claim."
@@ -153,35 +167,34 @@ def main() -> None:
     # ---- 5. time placebo --------------------------------------------------
     section("5. In-time placebo: pretend treatment happened earlier")
     fake_year = TREAT_YEAR - 3
-    try:
-        pre_only = df[df["year"] < TREAT_YEAR]
-        sc_fake = sp.synth(
-            data=pre_only, outcome="bmprison", unit="statefip", time="year",
-            treated_unit=TREATED_STATE, treatment_time=fake_year, placebo=False,
-        )
-        report(f"placebo ATT at fake treatment year {fake_year}", float(sc_fake.estimate))
-        print(
-            "  This should be near zero.  A large 'effect' before anything happened\n"
-            "  means the pre-treatment fit is riding a trend, not a match."
-        )
-    except Exception as exc:
-        print(f"  (in-time placebo unavailable: {type(exc).__name__}: {str(exc)[:110]})")
+    pre_only = df[df["year"] < TREAT_YEAR]
+    sc_fake = sp.synth(
+        data=pre_only, outcome="bmprison", unit="statefip", time="year",
+        treated_unit=TREATED_STATE, treatment_time=fake_year, placebo=False,
+    )
+    require(np.isfinite(float(sc_fake.estimate)), "in-time placebo must return a finite estimate")
+    report(f"placebo ATT at fake treatment year {fake_year}", float(sc_fake.estimate))
+    print(
+        "  This should be near zero.  A large 'effect' before anything happened\n"
+        "  means the pre-treatment fit is riding a trend, not a match."
+    )
 
     # ---- 6. synthetic DiD -------------------------------------------------
     section("6. Synthetic DiD (Arkhangelsky et al. 2021) as a robustness check")
-    try:
-        sd = sp.sdid(
-            data=df, outcome="bmprison", unit="statefip", time="year",
-            treated_unit=TREATED_STATE, treatment_time=TREAT_YEAR,
-        )
-        report("sdid ATT", float(sd.estimate), float(sd.se))
-        print(
-            "  SDiD adds a level shift and time weights, so it does not require exact\n"
-            "  pre-treatment fit.  Agreement between synth and sdid is real reassurance;\n"
-            "  disagreement usually means the pre-fit was doing too much work."
-        )
-    except Exception as exc:
-        print(f"  (sdid unavailable: {type(exc).__name__}: {str(exc)[:110]})")
+    sd = sp.sdid(
+        data=df, outcome="bmprison", unit="statefip", time="year",
+        treated_unit=TREATED_STATE, treatment_time=TREAT_YEAR,
+    )
+    require(
+        np.isfinite(float(sd.estimate)) and np.isfinite(float(sd.se)),
+        "synthetic DiD must return a finite estimate and standard error",
+    )
+    report("sdid ATT", float(sd.estimate), float(sd.se))
+    print(
+        "  SDiD adds a level shift and time weights, so it does not require exact\n"
+        "  pre-treatment fit.  Agreement between synth and sdid is real reassurance;\n"
+        "  disagreement usually means the pre-fit was doing too much work."
+    )
 
     section("What to report")
     print(

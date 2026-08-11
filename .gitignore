@@ -7,3 +7,5 @@ __pycache__/
 # Figures written by the validation scripts
 scripts/*.png
 scripts/simulations/*.png
+/event_study_castle.png
+/ri_thornton.png

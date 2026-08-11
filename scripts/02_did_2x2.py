@@ -114,8 +114,8 @@ def main() -> None:
         "baseline -- report this, not just the t-statistic."
     )
     print(
-        "  Note the cluster count above: 42 states is right at the boundary where "
-        "cluster-robust\n  asymptotics start to fail.  See 11_inference_clusters.py."
+        "  Report both total and treated-cluster counts, then assess imbalance and\n"
+        "  leverage before choosing a small-sample correction. See 10_inference_clusters.py."
     )
 
 

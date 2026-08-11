@@ -1,6 +1,6 @@
 # Changelog
 
-## v3.0.0 — Runnable, validated, StatsPAI-first
+## v3.0.0 — Runnable, validated, multi-backend templates
 
 The skill previously shipped inert markdown templates. Several contained bugs
 that would not run or would silently produce wrong estimates, and the Python
@@ -18,11 +18,12 @@ and checks it.
 - `scripts/validate_all.py` — one-command regression sweep (`--quick`, `--list`).
 - `scripts/simulations/` — collider bias and staggered-TWFE bias, both scored
   against a known truth rather than asserted.
-- `scripts/requirements.txt` — versions the results were produced with.
+- `scripts/requirements.txt` and `requirements.lock.txt` — direct validated
+  versions plus the fully pinned, hashed transitive environment.
 
 ### Added — references
 
-- `references/statspai-guide.md` — StatsPAI as the Python backend: API map,
+- `references/statspai-guide.md` — StatsPAI integration guide: API map,
   Stata/R migration table, recommended workflow, verified cross-backend numbers,
   and **11 non-obvious gotchas found by running it**.
 - `references/design-router.md` — assignment mechanism → design → estimator →
@@ -91,8 +92,9 @@ CRAN), `rdd::DCdensity`, and `lfe` in favour of maintained packages.
 
 Honest DiD (Rambachan-Roth), pre-trend power (Roth 2022), wild cluster
 bootstrap, small-cluster guidance, two-way and Conley clustering,
-Borusyak-Jaravel-Spiess imputation, Anderson-Rubin CIs, the Lee et al. (2022)
-F > 104.7 threshold, Abadie-Imbens bias-corrected matching, the forbidden
+Borusyak-Jaravel-Spiess imputation, Anderson-Rubin CIs, and the Lee et al. (2022)
+104.7 result for its applicable single-IV t-ratio setting, plus Abadie-Imbens
+bias-corrected matching, the forbidden
 regression, manual-2SLS standard errors, judge/examiner leniency designs, Nickell
 bias, and multiple-testing corrections.
 

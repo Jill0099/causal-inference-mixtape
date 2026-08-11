@@ -30,8 +30,8 @@ How was treatment assigned?
 │
 ├─ RANDOMISED (you or someone else ran the experiment)
 │   └─ Difference in means + covariate adjustment
-│      Inference: randomisation inference if few clusters; cluster at the level
-│      randomised.  Check attrition and balance.
+│      Inference: randomisation inference using the actual assignment mechanism;
+│      cluster at the level randomised.  Check attrition and balance.
 │      -> scripts/09_randomization_inference.py
 │
 ├─ BY A THRESHOLD on a continuous running variable
