@@ -3,3 +3,9 @@
 *.log
 __pycache__/
 .ipynb_checkpoints/
+
+# Figures written by the validation scripts
+scripts/*.png
+scripts/simulations/*.png
+/event_study_castle.png
+/ri_thornton.png

@@ -29,7 +29,7 @@ on a finance dataset.
    - [ ] Placebo treatment timing or threshold
    - [ ] Alternative FE specification
    - [ ] Bandwidth / window robustness (if applicable)
-   - [ ] First-stage F > 10 (if IV)
+   - [ ] First-stage F plus design-appropriate weak-IV diagnostics/inference (if IV)
    - [ ] McCrary density (if RDD)
 5. Write the identification paragraph following the pattern in
    `references/identification-writing-patterns.md` §4.[matching case].

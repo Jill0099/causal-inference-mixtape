@@ -8,21 +8,48 @@ Copy and paste the prompt below into Claude with your details filled in.
 You are an expert econometrician implementing causal inference methods.
 
 Implement a complete [METHOD] analysis pipeline in [LANGUAGE: Python / R / Stata].
+In Python, use StatsPAI (`import statspai as sp`) as the primary backend and
+cross-check the point estimate against pyfixest or linearmodels.
 
 Requirements:
-1. Data preparation (variable creation, sample restrictions)
-2. Main estimation with correct standard errors
-3. Key diagnostic / robustness check
-4. Publication-ready output (coefficient table or plot)
+1. State the ESTIMAND this design identifies (ATE / ATT / LATE / ATT(g,t)).
+2. Data preparation (variable creation, sample restrictions)
+3. Main estimation with correct standard errors, clustered at the level at
+   which TREATMENT WAS ASSIGNED
+4. Design-specific diagnostics (below)
+5. Publication-ready output, reporting N, number of clusters, number of TREATED
+   clusters, treated share, untreated baseline mean, and the economic magnitude
+   in words -- not a t-statistic alone
 
 Method-specific requirements:
 
-- DiD: Include parallel trends event study plot. Cluster SE at [level]. Report DiD coefficient with baseline mean for economic magnitude.
-- RDD: Include McCrary density test, bandwidth robustness (half/double), polynomial robustness. Report local linear estimate.
-- IV: Report first-stage F-statistic. Defend exclusion restriction. Report Wu-Hausman test.
-- Synthetic Control: Pre-treatment fit (RMSPE), placebo distribution, gaps plot.
-- Matching/IPW: Covariate balance table before and after. Trimming at [0.1, 0.9].
-- Event Study: Dynamic coefficients plot with 95% CI. Reference period = t-1.
+- DiD: Event-study plot with the reference period omitted from the design matrix
+  and re-inserted in the plot as an exact zero; endpoints BINNED, not zeroed.
+  Joint pre-trend test AND its power. Honest DiD (Rambachan-Roth) over an M grid,
+  with the breakdown M stated in words. Placebo treatment date.
+- Staggered DiD: do NOT report TWFE as the ATT. Bacon decomposition first, with
+  the weight on "already-treated as control" comparisons; then Callaway-Sant'Anna
+  / Sun-Abraham / BJS as the headline, TWFE as a benchmark.
+- RDD: manipulation density test BEFORE estimating. Compliance at the cutoff.
+  MSE-optimal bandwidth with the ROBUST BIAS-CORRECTED CI as the headline
+  (a hand-rolled `y ~ D*x` OLS inside a chosen bandwidth is not an RDD estimate).
+  Bandwidth sweep, polynomial sweep stopping at p=2, placebo cutoffs, covariate
+  continuity on PREDETERMINED variables only.
+- IV: first stage and reduced form. First-stage F against a STATED criterion
+  (Staiger-Stock 10 vs Lee et al. 2022's 104.7). Anderson-Rubin CI if weak.
+  Exclusion restriction argued in prose. Complier share and characterisation;
+  state the estimand as a LATE. Use a real 2SLS routine -- never a manual
+  two-step, and never a nonlinear first stage plugged in as a regressor.
+- Synthetic Control: pre-treatment RMSPE, donor weights, PERMUTATION RANK as the
+  p-value (never a t-ratio -- with one treated unit there is no sampling
+  distribution), in-time placebo, leave-one-out.
+- Matching/IPW: overlap stated numerically BEFORE estimating. State whether your
+  trimming DROPS off-support units or CLIPS the propensity score. Max weight and
+  its share of the total. Balance table with standardised differences. Abadie-
+  Imbens bias correction for continuous covariates, and matching-appropriate
+  standard errors -- not the post-match OLS default.
+- Few clusters (<50): wild cluster bootstrap; assert its beta matches the
+  analytic coefficient. Fewer than 10: randomisation inference.
 
 My details:
 - Method: [e.g., Difference-in-Differences]

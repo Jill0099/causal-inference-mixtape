@@ -1,6 +1,18 @@
 # Identification Writing Patterns (Finance)
 
-Exemplar paragraphs, framing verbs, and robustness checklists extracted from 25 top-tier JF papers (2021-2024). Use when writing an identification section or reviewing a draft for over-claiming.
+Framing verbs, exemplar identification *moves*, and robustness checklists drawn
+from 25 top-tier JF papers (2021-2024). Use when writing an identification
+section or reviewing a draft for over-claiming.
+
+> §4 describes each paper's rhetorical structure and gives an adaptable
+> template. It does not reproduce article text — consult the originals, which
+> remain under their publishers' copyright.
+>
+> Related: [`reporting-checklist.md`](reporting-checklist.md) for what to print
+> alongside each estimate, [`design-router.md`](design-router.md) for choosing
+> the design in the first place, and
+> [`inference-and-standard-errors.md`](inference-and-standard-errors.md) for
+> clustering and parallel-trends sensitivity.
 
 ---
 
@@ -43,48 +55,130 @@ When you see a threshold-based design *without* all three layers, flag it.
 
 ---
 
-## §4. Exemplar Identification Paragraphs (Verbatim)
+## §4. Exemplar Identification Moves
 
-### 4.1 DiD — Bennedsen 2022
-> "We estimate a difference-in-differences (diff-in-diff) model with treated employees being those working in firms that employ 35 to 50 employees prior to the introduction of the law and control employees being those working in firms with 20 to 34 workers… By including individual × firm fixed effects, we control for time-invariant person characteristics, time-invariant firm characteristics, and the match between firms and workers, which allows us to compare the same employee at the same firm before and after the regulation change."
+Each entry below describes the **rhetorical move** a published identification
+paragraph makes, and the template you can adapt. These are paraphrases and
+structural summaries, not reproductions — go to the papers themselves for the
+authors' own wording.
 
-### 4.2 Saturated FE — Kempf 2021
-> "By comparing rating actions of analysts who rate the same firm at the same point in time, we ensure our results cannot be driven by differences in the fundamentals of rated firms… we focus on how the behavior of analysts changes depending on whether their preferred party is in power, as opposed to static differences between Democratic and Republican analysts."
+### 4.1 DiD with a size threshold — Bennedsen et al. (2022), *JF*
 
-### 4.3 IV — Brown 2021
-> "Our identifying assumption is that severe winter weather affects corporate liquidity management only through its effect on cash flows. The temporary nature of our severe winter weather measure makes this assumption plausible. Unlike highly destructive natural disaster events such as hurricanes or earthquakes, abnormal snow cover is unlikely to affect investment opportunities or access to capital, except through its effect on the cash flows of current projects."
+**The move:** define treatment and control as narrow bands on either side of the
+regulatory threshold, then name exactly what the fixed-effect structure removes.
 
-### 4.4 Sharp RDD — Barber 2022
-> "Robinhood requires stocks above $300 million in market capitalization to be displayed on the Top Movers list. We use a sharp regression discontinuity design to show that Robinhood users are more likely to buy stocks with market capitalization between $300 million and $350 million than stocks with similar absolute returns but market capitalization between $250 million and $300 million."
+> *Template.* "Treated units are those with [running variable] in [band just
+> above the cutoff] before [policy]; controls are those in [band just below].
+> By including [unit × subunit] fixed effects we absorb time-invariant [unit]
+> characteristics, time-invariant [subunit] characteristics, and the match
+> between them, so the comparison is the same [unit] at the same [subunit]
+> before and after the change."
 
-### 4.5 Within-Unit Subunit Variation — Drechsler 2021
-> "This estimation uses only differences in deposit rates across branches of the same bank. It thus removes time-varying bank characteristics (e.g., loan demand), giving us a clean measure of local market power."
+The strength is the second sentence: it names the variation being used, not just
+the variation being removed.
 
-### 4.6 Honest Limitation Framing — Bolton 2023
-> "As is well known, cross-country studies are beset by endogeneity and identification challenges, as country-level variation can be driven by many different sources. In this study, we can to some extent overcome these challenges by exploiting rich country-, industry-, and firm-level variation in carbon emissions and other characteristics to identify the different sources of transition risk."
+### 4.2 Saturated FE — Kempf & Tsoutsoura (2021), *JF*
 
-### 4.7 Non-Causal Disclaimer — Biais 2023
-> "The calibrated coefficients imply required returns that increase in transactional costs and decrease in transactional benefits. That said, we do not claim statistical significance or estimation of population parameters because of the relatively small size of our sample and the likely non-stationarity of our variables."
+**The move:** state the comparison in plain language ("the same firm, the same
+quarter, different analysts"), and distinguish the *within-unit change* from a
+*static between-group difference*.
 
-### 4.8 Prediction, Not Structure — Kelly 2024
-> "We prove that expected out-of-sample forecast accuracy and portfolio performance are strictly increasing in model complexity when appropriate shrinkage is applied... The interpretation is not necessarily that asset returns are subject to a large number of fundamental driving forces. Rather, even when the driving variables have low dimension, complex models better leverage the information content of G_t."
+> *Template.* "By comparing [decisions] made about the same [unit] at the same
+> point in time, our results cannot be driven by differences in [unit]
+> fundamentals. We study how [agent] behaviour CHANGES with [treatment], not
+> static differences between [type A] and [type B] agents."
+
+### 4.3 IV exclusion — Brown, Gustafson & Ivanov (2021), *JF*
+
+**The move:** argue exclusion by contrasting the instrument with a *stronger*
+shock that would violate it.
+
+> *Template.* "Our identifying assumption is that [instrument] affects [outcome]
+> only through [channel]. The [temporary / localised / mild] nature of the shock
+> makes this plausible: unlike [destructive alternative — hurricanes,
+> earthquakes], [instrument] is unlikely to affect [alternative channel A] or
+> [channel B], except through [the intended channel]."
+
+This is the single most transferable paragraph in the set. The contrast case is
+what does the work.
+
+### 4.4 Sharp RDD — Barber et al. (2022), *JF*
+
+**The move:** name the institutional rule that creates the cutoff, then state the
+comparison as two adjacent bins that are alike on everything except eligibility.
+
+> *Template.* "[Institution] requires [running variable] above [cutoff] for
+> [treatment]. We use a sharp RD design to compare units with [running variable]
+> in [cutoff, cutoff+δ] against units with similar [key covariate] but [running
+> variable] in [cutoff−δ, cutoff]."
+
+### 4.5 Within-unit subunit variation — Drechsler et al. (2021), *JF*
+
+**The move:** one sentence naming the confound the design removes and the
+quantity it therefore isolates.
+
+> *Template.* "This estimation uses only differences across [subunits] of the
+> same [unit]. It removes time-varying [unit] characteristics such as
+> [confound], giving a clean measure of [target quantity]."
+
+### 4.6 Honest limitation framing — Bolton & Kacperczyk (2023), *JF*
+
+**The move:** concede the design's limits up front, then state precisely how far
+the data goes — "to some extent", not "we solve this".
+
+> *Template.* "Cross-[level] studies are beset by endogeneity and identification
+> challenges, since [level]-level variation can be driven by many sources. We can
+> to some extent address these by exploiting rich [dimension A], [dimension B]
+> and [dimension C] variation, but we do not claim [level]-level exogeneity."
+
+Referees reward this. Overclaiming and then being caught costs far more than
+conceding scope in the paper.
+
+### 4.7 Non-causal disclaimer — Biais et al. (2023), *JF*
+
+**The move:** report the calibration, then explicitly decline the inferential
+claim a reader might otherwise import.
+
+> *Template.* "The calibrated coefficients imply [pattern]. That said, we do not
+> claim statistical significance or estimation of population parameters, given
+> [small sample / likely non-stationarity]."
+
+### 4.8 Prediction, not structure — Kelly, Malamud & Zhou (2024), *JF*
+
+**The move:** prove the statistical result, then pre-empt the structural
+interpretation readers will reach for.
+
+> *Template.* "We show [statistical result about model complexity / predictive
+> accuracy]. The interpretation is NOT that [economic quantity] is driven by
+> [many fundamental forces]; rather, [alternative mechanical explanation]."
+
+The value here is the explicit negation. If you can predict the misreading, say
+it is a misreading.
 
 ---
 
 ## §5. Robustness Checklist by Design
 
 ### 5.1 DiD
-- [ ] Event-study plot (leads + lags with t=−1 as reference)
-- [ ] Parallel-trends test (joint significance of leads)
+- [ ] Event-study plot (leads + lags, t=−1 omitted from the design matrix and
+      re-inserted in the plot as an exact zero; endpoints **binned**)
+- [ ] Parallel-trends test (joint significance of leads) **and its power**
+      (Roth 2022 — a flat plot under a low-power test proves very little)
+- [ ] **Honest DiD (Rambachan-Roth 2023)**: robust CIs over an M grid, with the
+      breakdown M stated in words. A breakdown below 1 is a fragile result.
 - [ ] Placebo treatment timing
 - [ ] Alternative control group (matched / synthetic)
-- [ ] Staggered-DiD: Bacon decomposition OR Callaway-Sant'Anna OR Sun-Abraham
-- [ ] Clustering at treatment-assignment level
+- [ ] Staggered-DiD: Bacon decomposition **and** a heterogeneity-robust headline
+      estimator (Callaway-Sant'Anna / Sun-Abraham / BJS), TWFE as benchmark only
+- [ ] Clustering at treatment-assignment level; report cluster count **and
+      treated-cluster count**; add a small-sample correction when effective
+      cluster count, imbalance, or leverage makes conventional CRVE doubtful
 - [ ] Triple-difference (DDD) when available (Bennedsen)
 - [ ] Diff-in-disc if there is a threshold (Bennedsen)
 
 ### 5.2 IV / 2SLS
-- [ ] First-stage F > 10 (Stock-Yogo) or > 104 (Lee et al. 2022 correction)
+- [ ] First-stage F plus design-appropriate weak-IV inference; use Lee et al.
+      (2022)'s 104.7 threshold only in its applicable single-IV setting
 - [ ] Exclusion-restriction narrative (why the IV affects Y only through D)
 - [ ] Over-identification test (Hansen J) if multiple IVs
 - [ ] Reduced-form + first-stage visualization

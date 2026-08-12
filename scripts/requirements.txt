@@ -1,0 +1,27 @@
+# Reproducible environment for the numerical results quoted in the docs.
+# Keep these versions exact: several dependencies are pre-1.0, and a clean
+# install with unbounded lower constraints has already exposed API regressions
+# (for example, duplicate event-study rows in StatsPAI 1.22.0).
+# Regenerate the transitive, hashed lock with:
+#   uv pip compile scripts/requirements.txt --generate-hashes \
+#     --output-file scripts/requirements.lock.txt
+#
+#   validated 2026-08 on macOS / CPython 3.11
+#     statspai 1.21.0   pyfixest 0.50.1   statsmodels 0.14.6
+#     linearmodels 6.1  pyhdfe 0.2.0      pandas 3.0.2
+#     numpy 2.4.4       scipy 1.17.1      matplotlib 3.9.3
+#     wildboottest 0.3.2
+
+statspai==1.21.0
+pyfixest==0.50.1
+statsmodels==0.14.6
+linearmodels==6.1
+pyhdfe==0.2.0
+pandas==3.0.2
+numpy==2.4.4
+scipy==1.17.1
+matplotlib==3.9.3
+
+# Required for the independent pyfixest wild-cluster-bootstrap cross-check in
+# scripts/10_inference_clusters.py.
+wildboottest==0.3.2
