@@ -3,10 +3,11 @@
 Detailed code templates extracted from 58 Python scripts, ~56 R scripts, and ~60
 Stata `.do` files in the Mixtape repository.
 
-> **Every Python snippet below has a runnable, executed counterpart in
-> [`scripts/`](../scripts/).** The templates here are for reading and adapting;
-> the scripts are the proof they work. `python scripts/validate_all.py` runs all
-> 13 against the Mixtape's public data and asserts cross-backend agreement.
+> **The core validation suite contains 13 runnable scripts for representative
+> Python pathways and quoted invariants in §§1–14.** `python
+> scripts/validate_all.py` runs them against the Mixtape's public data and
+> asserts cross-backend agreement. Not every illustrative snippet has a script;
+> §15 DML is explicitly reference-only and uses optional dependencies.
 >
 > **Python backend roles:** `StatsPAI` covers a broad causal-estimator surface;
 > `pyfixest` targets large high-dimensional FE models; `linearmodels` provides
@@ -1217,3 +1218,87 @@ reg car_10d emission_intensity log_size log_bm, robust
 ```
 
 **Key robustness**: (1) placebo non-event dates, (2) no overlapping corporate actions, (3) multiple comparison correction if scanning many events, (4) sign-flip test for asymmetric effects.
+
+---
+
+## §15. Double / Debiased Machine Learning (DML)
+
+Use when the nuisance functions — in the PLR partialling-out score, the outcome regression `ℓ(X)=E[Y|X]` and treatment regression `m(X)=E[D|X]` — are high-dimensional or nonlinear, so parametric controls would mis-specify them. DML (Chernozhukov et al. 2018) plugs ML learners into a **Neyman-orthogonal** moment and uses **cross-fitting** (out-of-fold nuisance prediction) to limit regularization and own-observation overfitting bias. Under the design's identification assumptions and the required nuisance-rate, moment, overlap, and sampling conditions, it supports asymptotically normal estimation of a low-dimensional target. Conceptual depth, model classes, and the DeDL frontier extension are in [`dml-causal-ml.md`](dml-causal-ml.md).
+
+> These examples use optional `doubleml` and `econml` dependencies that are not
+> part of the core 13-script validation lock. Pin and validate them separately
+> before using this section in a replication environment.
+
+### Python — Partially Linear Model (PLR), continuous/binary D
+
+```python
+# Structural PLR: Y = theta*D + g0(X) + e; D = m0(X) + v.
+# DoubleML's ml_l learns l0(X)=E[Y|X]; ml_m learns m0(X)=E[D|X].
+import numpy as np
+from doubleml import DoubleMLData, DoubleMLPLR
+from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
+
+np.random.seed(42)  # reproducible sample splitting
+dml_data = DoubleMLData(df, y_col='y', d_cols='treat', x_cols=x_cols)
+ml_l = RandomForestRegressor(n_estimators=500, max_depth=5, random_state=42)
+ml_m = RandomForestClassifier(n_estimators=500, max_depth=5, random_state=42)
+# For a continuous treatment, use RandomForestRegressor for ml_m instead.
+
+dml_plr = DoubleMLPLR(dml_data, ml_l=ml_l, ml_m=ml_m,
+                      n_folds=5, n_rep=10)
+dml_plr.fit()
+print(dml_plr.summary)  # theta, SE, t, CI; pass cluster_cols to DoubleMLData for clustered data
+```
+
+### Python — Interactive Regression Model (IRM) for ATE, binary D + HTE via causal forest
+
+```python
+# ATE with fully interacted (doubly robust / AIPW) score, binary treatment
+from doubleml import DoubleMLIRM
+dml_irm = DoubleMLIRM(dml_data,
+                      ml_g=RandomForestRegressor(random_state=42),
+                      ml_m=RandomForestClassifier(random_state=42),
+                      n_folds=5, score='ATE')
+dml_irm.fit(); print(dml_irm.summary)
+
+# Heterogeneous treatment effects tau(x) = E[Y1 - Y0 | X=x]  (EconML)
+from econml.dml import CausalForestDML
+cf = CausalForestDML(model_y=RandomForestRegressor(random_state=42),
+                     model_t=RandomForestClassifier(random_state=42),
+                     discrete_treatment=True, n_estimators=2000, cv=5,
+                     random_state=42)
+cf.fit(Y=df['y'], T=df['treat'], X=df[x_cols])
+te = cf.effect(df[x_cols]); lb, ub = cf.effect_interval(df[x_cols], alpha=0.05)
+```
+
+### R — DoubleML (mlr3 learners) + grf causal forest
+
+```r
+library(DoubleML); library(mlr3); library(mlr3learners)
+set.seed(42)
+dml_data <- double_ml_data_from_data_frame(df, y_col="y", d_cols="treat", x_cols=x_cols)
+ml_l <- lrn("regr.ranger", num.trees=500); ml_m <- lrn("regr.ranger", num.trees=500)
+plr <- DoubleMLPLR$new(dml_data, ml_l=ml_l, ml_m=ml_m, n_folds=5, n_rep=10)
+plr$fit(); plr$summary()
+
+# HTE
+library(grf)
+cf <- causal_forest(X = as.matrix(df[x_cols]), Y = df$y, W = df$treat, num.trees = 2000)
+average_treatment_effect(cf); test_calibration(cf)     # calibration check
+```
+
+### Stata — ddml (with pystacked) and partialling-out lasso
+
+```stata
+* ddml: cross-fit ML nuisances, then orthogonal estimation
+ddml init partial, kfolds(5) reps(10) fcluster(panel_id)
+ddml E[Y|X]: pystacked y c.(x1-x50)##c.(x1-x50), type(reg)
+ddml E[D|X]: pystacked treat c.(x1-x50)##c.(x1-x50), type(reg)
+ddml crossfit
+ddml estimate, cluster(panel_id)
+
+* Lightweight alternative: post-double-selection lasso (Belloni-Chernozhukov-Hansen)
+pdslasso y treat (x1-x50), robust
+```
+
+**Key robustness**: (1) Use cross-fitting in the standard DML workflow; in-sample nuisance predictions generally require much stronger empirical-process conditions for valid inference. (2) Vary learners (lasso / random forest / gradient boosting) and inspect the stability of `theta`; large changes can indicate unstable nuisance estimation, weak overlap, or misspecification. (3) Report out-of-fold nuisance metrics such as R²/AUC as diagnostics, but do not treat predictive performance alone as proof that the required nuisance-rate conditions hold. (4) For dependent data, pass `cluster_cols` to `DoubleMLData` in Python; in Stata, use `fcluster(panel_id)` for fold assignment and `cluster(panel_id)` for inference. Keep dependent observations in the same fold and choose clustering from the assignment, sampling, and dependence structure. (5) `theta` has a causal interpretation **only under the design's identifying assumptions**. In the PLR example it is a partially linear target and is not automatically an ATE under heterogeneous effects; IRM targets ATE/ATTE under unconfoundedness and overlap. DML fixes an *estimation* problem, not an *identification* problem.

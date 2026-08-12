@@ -1,21 +1,23 @@
 ---
 name: causal-inference-mixtape
-description: This skill should be used when the user asks to "implement a DiD regression", "run a staggered difference-in-differences", "set up an event study", "implement IV / 2SLS", "run a regression discontinuity design", "build synthetic control", "do propensity score matching", "test parallel trends", "run Honest DiD", "wild cluster bootstrap", "Callaway-Sant'Anna", "Sun-Abraham", "Bacon decomposition", "which causal design fits my data", or needs causal-inference code, diagnostics, or identification writing in Python (StatsPAI), R, or Stata. Based on Scott Cunningham's Causal Inference: The Mixtape, with runnable validated templates and Journal of Finance applications.
-version: 3.0.0
+description: This skill should be used when the user asks to "implement a DiD regression", "run a staggered difference-in-differences", "set up an event study", "implement IV / 2SLS", "run a regression discontinuity design", "build synthetic control", "do propensity score matching", "test parallel trends", "run Honest DiD", "wild cluster bootstrap", "Callaway-Sant'Anna", "Sun-Abraham", "Bacon decomposition", "double machine learning", "debiased machine learning", "DML / DoubleML", "cross-fitting", "causal forest", "heterogeneous treatment effects", "ATE with ML controls", "which causal design fits my data", or needs causal-inference code, diagnostics, or identification writing in Python (StatsPAI), R, or Stata. Based on Scott Cunningham's Causal Inference: The Mixtape, with runnable validated templates, ML-based causal inference patterns, and Journal of Finance applications.
+version: 3.1.0
 ---
 
-# Causal Inference: The Mixtape — Code Skill (v3.0)
+# Causal Inference: The Mixtape — Code Skill (v3.1)
 
 Practitioner-oriented causal inference: **route from the assignment mechanism to
 a design**, implement it in Python / R / Stata, run the diagnostics that make it
 publishable, and write the identification section without over-claiming.
 
 Based on Scott Cunningham's *Causal Inference: The Mixtape*, extended with 25
-Journal of Finance (2021-2024) applications.
+Journal of Finance (2021-2024) applications and ML-based causal inference
+patterns for DML, causal forests, and heterogeneous treatment effects.
 
-**Every Python template ships as a runnable script validated against the
-Mixtape's own public data.** `python scripts/validate_all.py` runs all 13 and
-asserts cross-backend agreement — currently 13/13 passing.
+**The core Python validation suite runs against the Mixtape's own public
+data.** `python scripts/validate_all.py` runs all 13 bundled scripts and asserts
+cross-backend agreement — currently 13/13 passing. The DML material in §15 is
+reference code and is not part of that 13-script validation suite.
 
 ---
 
@@ -39,6 +41,10 @@ How was treatment assigned?
 Full tree, estimator choice within each design, and a StatsPAI second opinion
 (`sp.detect_design`, `sp.recommend`, `sp.preflight`):
 **`references/design-router.md`**.
+
+When the design is unsettled, also load **`references/method-selection.md`**.
+It maps research setting → identifying assumption → method → falsification
+check, with Chinese-language explanations and links to worked Stata tutorials.
 
 ---
 
@@ -89,6 +95,7 @@ an *answer*; prefer generating a script when they want a reproducible artefact.
 | Instrumental variables | `sp.ivreg` | AER, fixest | ivregress | `06` | §6 |
 | Synthetic control / SDiD | `sp.synth`, `sp.sdid` | Synth, synthdid | synth, sdid | `07` | §7 |
 | Matching / PSM / IPW | `sp.match`, `sp.ipw`, `sp.psmatch2` | MatchIt | teffects, cem | `08` | §8 |
+| Double / Debiased ML | DoubleML, EconML | DoubleML, grf | ddml, pdslasso | — | §15; `dml-causal-ml.md` |
 | DAGs / collider bias | `sp.dag`, dowhy | dagitty | — | `sim_collider_bias` | §9 |
 | Randomisation inference | `sp.ri_test` | ri2 | ritest | `09` | §10 |
 | Clustered inference / wild bootstrap | `sp.wild_cluster_bootstrap` | fwildclusterboot | boottest | `10` | `inference-and-standard-errors.md` |
@@ -102,9 +109,11 @@ an *answer*; prefer generating a script when they want a reproducible artefact.
 
 ## Core Workflow
 
-1. **Route** the design from the assignment mechanism (`design-router.md`)
-2. **Load** the template from `method-patterns.md`; the runnable version is in
-   `scripts/`
+1. **Route** the design from the assignment mechanism (`design-router.md`),
+   using `method-selection.md` when the setting or identifying assumption is
+   still unclear
+2. **Load** the template from `method-patterns.md`; use the corresponding
+   runnable version in `scripts/` when one is listed in the methods table
 3. **Adapt** variable names, FE structure and clustering — cluster at the level
    of **treatment assignment** (Abadie-Athey-Imbens-Wooldridge 2023)
 4. **Diagnose** with the design's required checks (`reporting-checklist.md` §3)
@@ -117,7 +126,9 @@ an *answer*; prefer generating a script when they want a reproducible artefact.
 
 ## Common Pitfalls
 
-Each of these is demonstrated live in a script rather than asserted.
+The numbered script references below point to live demonstrations. General
+design and DML cautions without a script reference are documentation guidance,
+not claims of executed validation.
 
 1. **TWFE with staggered treatment.** In simulation with effects growing at 1.0
    per period, the true ATT is 6.832 and TWFE reports 3.173 — a 54% understatement.
@@ -171,6 +182,11 @@ Each of these is demonstrated live in a script rather than asserted.
     do not create exogenous variation.
 18. **Multiple testing.** Apply Romano-Wolf or a FDR correction before trusting
     any single α from a scan. → `inference-and-standard-errors.md` §7
+19. **DML without cross-fitting.** In-sample nuisance predictions reintroduce
+    regularisation bias. Use out-of-fold prediction, vary the nuisance learners,
+    and remember that DML addresses estimation under high-dimensional controls,
+    not identification: an ATE interpretation still requires unconfoundedness.
+    → `dml-causal-ml.md`
 
 ---
 
@@ -179,8 +195,11 @@ Each of these is demonstrated live in a script rather than asserted.
 | File | What it is for |
 |---|---|
 | `references/design-router.md` | Assignment mechanism → design → estimator → required diagnostics |
+| `references/method-selection.md` | Chinese design-selection guide: setting → assumption → method → falsification check |
 | `references/statspai-guide.md` | StatsPAI API/integration guide, verified numbers, and 11 gotchas |
-| `references/method-patterns.md` | Code templates for all methods, Python / R / Stata |
+| `references/method-patterns.md` | Code templates for all methods, Python / R / Stata, including DML in §15 |
+| `references/dml-causal-ml.md` | DML model classes, cross-fitting, causal forests, and the DeDL frontier |
+| `references/lianxh-stata-index.md` | Chinese-language Stata tutorial index mapped to method sections |
 | `references/mixtape-core.md` | Potential outcomes, DAGs, matching theory, LATE, panel FE, staggered DiD |
 | `references/inference-and-standard-errors.md` | Clustering, small-cluster bootstrap, Honest DiD, RI, multiple testing |
 | `references/reporting-checklist.md` | What to print alongside every estimate, by design |

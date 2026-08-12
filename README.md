@@ -7,9 +7,14 @@ without over-claiming.
 
 Built from Scott Cunningham's [*Causal Inference: The
 Mixtape*](https://mixtape.scunning.com/), extended with 25 Journal of Finance
-(2021–2024) applications.
+(2021–2024) applications and ML-based causal inference patterns for DML,
+causal forests, and heterogeneous treatment effects.
 
-**Languages:** Python (StatsPAI, pyfixest, linearmodels, statsmodels) · R · Stata
+**Languages:** Python (StatsPAI, pyfixest, linearmodels, statsmodels; optional
+DoubleML/EconML) · R · Stata
+
+**Current skill version:** v3.1. The v3 core retains its 13-script validation
+suite; v3.1 adds reference-only DML and causal-ML material outside that suite.
 
 ---
 
@@ -108,6 +113,10 @@ How was treatment assigned?
 
 Full tree with estimator selection inside each design:
 [`references/design-router.md`](references/design-router.md).
+For a compact Chinese-language decision table, see
+[`references/method-selection.md`](references/method-selection.md); the linked
+Stata tutorial index is
+[`references/lianxh-stata-index.md`](references/lianxh-stata-index.md).
 
 ---
 
@@ -123,6 +132,7 @@ Full tree with estimator selection inside each design:
 | Instrumental variables | `sp.ivreg` | AER, fixest | ivregress | `06` |
 | Synthetic control / SDiD | `sp.synth`, `sp.sdid` | Synth, synthdid | synth, sdid | `07` |
 | Matching / PSM / IPW | `sp.match`, `sp.ipw` | MatchIt | teffects, cem | `08` |
+| Double / Debiased ML | DoubleML, EconML | DoubleML, grf | ddml, pdslasso | — |
 | Randomisation inference | `sp.ri_test` | ri2 | ritest | `09` |
 | Clustered inference / wild bootstrap | `sp.wild_cluster_bootstrap` | fwildclusterboot | boottest | `10` |
 | Honest DiD / pre-trend power | `sp.honest_did` | HonestDiD | honestdid | `11` |
@@ -136,6 +146,7 @@ Full tree with estimator selection inside each design:
 - `set up an event study` · `test parallel trends` · `run Honest DiD`
 - `implement instrumental variables` · `run a regression discontinuity design`
 - `build a synthetic control model` · `implement propensity score matching`
+- `double machine learning` · `causal forest` · `heterogeneous treatment effects`
 - `implement Bacon decomposition` · `wild cluster bootstrap`
 - `which causal design fits my data`
 
@@ -164,8 +175,11 @@ causal-inference-mixtape/
 ├── SKILL.md                                  # Core skill (auto-loaded when triggered)
 ├── references/
 │   ├── design-router.md                      # Assignment mechanism -> design -> estimator
+│   ├── method-selection.md                   # Chinese design-selection decision guide
 │   ├── statspai-guide.md                     # StatsPAI API/integration guide and gotchas
-│   ├── method-patterns.md                    # Code templates, Python / R / Stata
+│   ├── method-patterns.md                    # Code templates, including DML in §15
+│   ├── dml-causal-ml.md                      # DML, cross-fitting, causal forests, DeDL
+│   ├── lianxh-stata-index.md                 # Chinese Stata tutorial link index
 │   ├── mixtape-core.md                       # Potential outcomes, DAGs, LATE, panel FE
 │   ├── inference-and-standard-errors.md      # Clustering, bootstrap, Honest DiD, RI
 │   ├── reporting-checklist.md                # What to print with every estimate
