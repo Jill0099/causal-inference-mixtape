@@ -1,5 +1,16 @@
 # Changelog
 
+## v3.1.0 — DML and Chinese method-selection references
+
+- Added §15 reference templates for Double/Debiased ML in Python, R, and Stata.
+- Added DML/causal-forest concepts, a Chinese design-selection guide, and a
+  public 连享会 Stata tutorial index.
+- Scoped DML to settings with defensible identification and overlap; clarified
+  that it does not automatically correct measurement error or create exogenous
+  variation.
+- Kept the v3 core validation boundary explicit: the 13 bundled scripts remain
+  validated, while §15 uses optional dependencies and is reference-only.
+
 ## v3.0.0 — Runnable, validated, multi-backend templates
 
 The skill previously shipped inert markdown templates. Several contained bugs
